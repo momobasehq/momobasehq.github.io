@@ -12,4 +12,6 @@ import { ApiReference } from '@scalar/api-reference'
 import '@scalar/api-reference/style.css'
 </script>
 
-<ApiReference :configuration="{ url: '/swagger.yaml', favicon: '/logo.svg', telemetry: false, showDeveloperTools: 'never' }" />
+<ClientOnly>
+	<ApiReference :configuration="{ url: 'https://momobasehq.github.io/momobase/swagger.json', favicon: '/logo.svg', telemetry: false, showDeveloperTools: 'never' }" />
+</ClientOnly>
