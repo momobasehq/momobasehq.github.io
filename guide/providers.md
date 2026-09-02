@@ -23,15 +23,15 @@ type PaymentProvider interface {
 
 Add only the interfaces the upstream API supports:
 
-| Interface | Method | Purpose |
-| --- | --- | --- |
-| `Collector` | `Collect` | Request money from a customer |
-| `Disburser` | `Disburse` | Send money to a recipient |
-| `TransactionQuerier` | `QueryTransaction` | Read status and support reconciliation |
-| `BalanceQuerier` | `QueryBalance` | Read the provider balance |
-| `HealthChecker` | `HealthCheck` | Verify upstream reachability and credentials |
-| `WebhookVerifier` | `VerifyWebhook` | Authenticate and normalize callbacks |
-| `RequestValidator` | `ValidateRequest` | Validate provider-specific request data before persistence |
+| Interface            | Method             | Purpose                                                    |
+| -------------------- | ------------------ | ---------------------------------------------------------- |
+| `Collector`          | `Collect`          | Request money from a customer                              |
+| `Disburser`          | `Disburse`         | Send money to a recipient                                  |
+| `TransactionQuerier` | `QueryTransaction` | Read status and support reconciliation                     |
+| `BalanceQuerier`     | `QueryBalance`     | Read the provider balance                                  |
+| `HealthChecker`      | `HealthCheck`      | Verify upstream reachability and credentials               |
+| `WebhookVerifier`    | `VerifyWebhook`    | Authenticate and normalize callbacks                       |
+| `RequestValidator`   | `ValidateRequest`  | Validate provider-specific request data before persistence |
 
 Return the status constants in `providers`, such as `TxPending`, `TxSucceeded`, or `TxFailed`. Amounts use integer minor currency units throughout Momobase.
 

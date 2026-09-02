@@ -2,20 +2,20 @@
 
 Momobase is a payment orchestration service. Your applications send collections and disbursements to one API, and Momobase routes each request through an eligible provider account.
 
-This page explains the runtime model. Use [Run Momobase locally](/guide/getting-started) when you want a working development instance.
+This page explains the runtime model. Use [Get started](/guide/getting-started) to embed a development instance.
 
 ## Runtime model
 
-A Momobase deployment has four main parts:
+A Momobase instance has four main parts:
 
-| Part | Responsibility |
-| --- | --- |
-| HTTP API | Authenticates applications and administrators, validates requests, and exposes payment and operational endpoints |
-| Payment services | Apply idempotency, select routes, call providers, and persist legal transaction transitions |
-| Provider runtimes | Hold initialized provider adapters, health state, and circuit-breaker state for active accounts |
-| Workers | Check provider health, reconcile unresolved transactions, and remove expired sessions |
+| Part              | Responsibility                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| HTTP API          | Authenticates applications and administrators, validates requests, and exposes payment and operational endpoints |
+| Payment services  | Apply idempotency, select routes, call providers, and persist legal transaction transitions                      |
+| Provider runtimes | Hold initialized provider adapters, health state, and circuit-breaker state for active accounts                  |
+| Workers           | Check provider health, reconcile unresolved transactions, and remove expired sessions                            |
 
-The supplied binary also embeds the administration dashboard. You can run that binary as a service or [embed Momobase in a Go application](/guide/embedding).
+The instance runs inside a host Go application, which owns process startup, deployment, and provider selection.
 
 ## Payment flow
 
@@ -49,13 +49,13 @@ Provider-specific account formats stay in adapters. Momobase treats `account` as
 
 Momobase stores applications, credentials, routing configuration, transactions, provider attempts, webhook deliveries, and audit records in SQLite, PostgreSQL, or MySQL.
 
-Versioned migrations handle schema changes that require renames, drops, or backfills. GORM `AutoMigrate` then converges the schema with current models. See [Deploy Momobase](/guide/deployment) for migration and backup guidance.
+Versioned migrations handle schema changes that require renames, drops, or backfills. GORM `AutoMigrate` then converges the schema with current models. See [Deploy a host application](/guide/deployment) for migration and backup guidance.
 
 ## Choose your next task
 
-- [Run Momobase locally](/guide/getting-started).
-- [Deploy Momobase](/guide/deployment).
+- [Get started](/guide/getting-started).
+- [Deploy a host application](/guide/deployment).
 - [Add payment hooks](/guide/extensions).
 - [Build a provider adapter](/guide/providers).
-- [Embed Momobase as a Go package](/guide/embedding).
+- [Configure an embedded instance](/guide/embedding).
 - [Develop and test the repository](/guide/development).

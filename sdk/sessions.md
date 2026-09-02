@@ -16,13 +16,13 @@ Concurrent requests share one refresh operation. The application client falls ba
 ## Inspect and clear a session
 
 ```ts
-const token = admin.getToken()
+const token = admin.getToken();
 
 if (token) {
-  console.log(token.expiresAt)
+	console.log(token.expiresAt);
 }
 
-admin.clearToken()
+admin.clearToken();
 ```
 
 `getToken()` returns a copy of the current token snapshot. `clearToken()` removes it and calls `onTokenChange(undefined)` when a callback is configured.
@@ -33,17 +33,17 @@ Pass tokens to the constructor:
 
 ```ts
 const admin = new MomobaseAdminClient({
-  baseUrl: 'https://payments.example.com',
-  accessToken: restored.accessToken,
-  refreshToken: restored.refreshToken,
-  onTokenChange: saveTokenSnapshot
-})
+	baseUrl: "https://payments.example.com",
+	accessToken: restored.accessToken,
+	refreshToken: restored.refreshToken,
+	onTokenChange: saveTokenSnapshot,
+});
 ```
 
 Or install them later:
 
 ```ts
-admin.setAccessToken(accessToken, refreshToken, expiresInSeconds)
+admin.setAccessToken(accessToken, refreshToken, expiresInSeconds);
 ```
 
 When `expiresInSeconds` is omitted, the SDK treats the access token as expired and tries to refresh it before the next request.
@@ -60,11 +60,11 @@ Set `tokenSkewSeconds` only when clock skew or network latency requires a larger
 
 ```ts
 const admin = new MomobaseAdminClient({
-  baseUrl: 'https://payments.example.com',
-  email,
-  password,
-  tokenSkewSeconds: 60
-})
+	baseUrl: "https://payments.example.com",
+	email,
+	password,
+	tokenSkewSeconds: 60,
+});
 ```
 
 The default is 30 seconds.

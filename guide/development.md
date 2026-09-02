@@ -1,73 +1,46 @@
 # Develop and test Momobase
 
-This guide covers the repositories for the Go service and dashboard (`momobase`), SDK (`sdk`), and documentation (`momobasehq.github.io`).
+Momobase is split across the Go package (`momobase`), TypeScript client (`sdk`), and documentation (`momobasehq.github.io`) repositories.
 
-## Install the toolchain
+## Go package
 
-Use the Go version and toolchain declared in `go.mod`, Node.js 22 or later, pnpm 11, Git, Make, and a C compiler for SQLite.
-
-Install optional repository tools when you need their targets:
-
-- `golangci-lint` for `make lint`;
-- `goreleaser` for release checks and snapshots; and
-- `swag` for regenerating the API specification.
-
-## Start the service
+Use the Go version declared in `go.mod`, Git, Make, a C compiler for SQLite, and GolangCI-Lint.
 
 ```sh
-cp .env.example .env
-make run
+make fmt-check
+make test
+make coverage
+make vet
+make lint
 ```
 
-`make run` installs web dependencies, builds the embedded dashboard, and starts the Go service. Use the [local setup guide](/guide/getting-started) to migrate, seed an administrator, and configure the dummy provider.
+`make quality` runs formatting, vet, tests, and lint. CI also runs shuffled whole-module coverage and the race detector.
 
-## Work on a web project
+## TypeScript SDK
 
-Install and run the dashboard from the `momobase` repository:
-
-```sh
-pnpm -C web install --frozen-lockfile
-pnpm -C web --filter @momobase/dashboard dev
-```
-
-Run the documentation from this repository:
+Use Node.js 24 and pnpm 11.
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev
+pnpm run format:check
+pnpm run lint
+pnpm run typecheck
+pnpm run build
 ```
 
-Run `pnpm install --frozen-lockfile` and `pnpm build` from the `sdk` repository to build the SDK.
+## Documentation
 
-## Regenerate the API specification
-
-Swagger annotations live beside the Go handlers. After changing an endpoint or schema, run this from a `momobase` checkout beside this repository:
+Use the same Node.js and pnpm versions, then run:
 
 ```sh
-swag init -g ./cmd/momobase/main.go --parseInternal --output ../momobasehq.github.io/public --outputTypes json,yaml
+pnpm install --frozen-lockfile
+pnpm run format:check
+pnpm run lint
+pnpm run build
 ```
 
-The command writes `swagger.json` and `swagger.yaml` to `public`. The VitePress API page loads `/swagger.yaml`.
+## Publish the OpenAPI contract
 
-## Run checks
+Swagger annotations live beside the Go handlers. Pushing a semantic-version tag in `momobase` generates `swagger.json` and `swagger.yaml`, then publishes them to `https://momobasehq.github.io/momobase/`. The API reference reads that tagged contract directly.
 
-Use the smallest check that covers your change, then run the broader suite before submitting it:
-
-| Change | Check |
-| --- | --- |
-| Go formatting | `make fmt-check` |
-| Go behavior | `make test` |
-| Go static analysis | `make vet` and `make lint` |
-| Dashboard types | `make web-typecheck` |
-| SDK package | `pnpm build` in `sdk` |
-| Documentation | `pnpm build` in `momobasehq.github.io` |
-| API smoke path | `make smoke-api` |
-| Full backend smoke path | `make smoke` |
-
-`make quality` runs formatting checks, vet, tests, and lint. Go targets build the dashboard first because its output is embedded in every binary.
-
-## Build a release artifact
-
-Run `make release-check` to validate the GoReleaser configuration. Run `make snapshot` to build local release artifacts without publishing them; arm64 cross-compilation requires the toolchain noted in the Makefile.
-
-For container changes, build the root `Dockerfile`. Its web stage builds the dashboard before the Go stage embeds it.
+Run `make docs` in the Go repository for a local preview when `swag` is installed.

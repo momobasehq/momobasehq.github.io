@@ -4,10 +4,10 @@
 
 ## Choose a client
 
-| Client | Use it for | Credential |
-| --- | --- | --- |
-| `MomobaseClient` | Listing payment methods, creating payments, and reading application transactions | Application client ID and secret |
-| `MomobaseAdminClient` | Managing operators, applications, providers, routes, and system data | Administrator email and password, or an existing token pair |
+| Client                | Use it for                                                                       | Credential                                                  |
+| --------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `MomobaseClient`      | Listing payment methods, creating payments, and reading application transactions | Application client ID and secret                            |
+| `MomobaseAdminClient` | Managing operators, applications, providers, routes, and system data             | Administrator email and password, or an existing token pair |
 
 Both clients use the global `fetch()` implementation available in modern browsers and Node.js. They return the `data` value from Momobase response envelopes and throw `MomobaseAPIError` for unsuccessful HTTP responses.
 

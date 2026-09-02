@@ -42,14 +42,14 @@ func main() {
 
 ## Configure the instance
 
-| Option | Purpose |
-| --- | --- |
-| `WithConfig(cfg)` | Use a complete `momobase.Config` instead of environment loading |
-| `WithConfigFunc(fn)` | Modify the resolved configuration before startup |
-| `WithAddr(addr)` | Override the HTTP listen address |
-| `WithLogger(logger)` | Use an application-owned `slog.Logger` |
-| `WithProvider(code, factory)` | Register one compiled provider |
-| `WithProviders(factories)` | Register several compiled providers |
+| Option                        | Purpose                                                         |
+| ----------------------------- | --------------------------------------------------------------- |
+| `WithConfig(cfg)`             | Use a complete `momobase.Config` instead of environment loading |
+| `WithConfigFunc(fn)`          | Modify the resolved configuration before startup                |
+| `WithAddr(addr)`              | Override the HTTP listen address                                |
+| `WithLogger(logger)`          | Use an application-owned `slog.Logger`                          |
+| `WithProvider(code, factory)` | Register one compiled provider                                  |
+| `WithProviders(factories)`    | Register several compiled providers                             |
 
 At least one provider is required. Provider codes become the values operators select when creating provider accounts.
 

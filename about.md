@@ -19,17 +19,17 @@ Momobase keeps that complexity in one service. Applications use a stable payment
 - Idempotent collections and disbursements.
 - Provider accounts, encrypted configuration, health, and routing.
 - Normalized transaction state, webhooks, and reconciliation.
-- Audit records, an Admin API, and an optional embedded dashboard.
+- Audit records and a complete Admin API.
 
 ## What stays outside Momobase
 
 Momobase is not a payment provider, merchant of record, or order-management system. You keep the commercial relationship with each provider, and your application remains the source of truth for orders and customer-facing business state.
 
-## How you can run it
+## How you use it
 
-Use the supplied `momobase` binary as a standalone service, or import the root Go package and register the providers your application needs. The supplied binary includes the dummy provider for testing and moves no money.
+Import the `momobase` Go package into your application and register the providers it needs. The included dummy provider is deterministic, intended for development, and moves no money.
 
-The [Momobase guide](/guide/) explains the runtime model, local setup, deployment, extensions, provider adapters, and package integration.
+The [Momobase guide](/guide/) explains the runtime model, package setup, deployment, extensions, and provider adapters.
 
 ::: warning Project status
 Momobase is early-stage software. Review its configuration, provider adapters, operational controls, and failure behavior before using it for production money movement.

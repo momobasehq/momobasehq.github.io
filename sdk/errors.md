@@ -7,25 +7,25 @@ This page covers response errors, local validation, request cancellation, and sa
 Non-successful HTTP responses throw `MomobaseAPIError`:
 
 ```ts
-import { MomobaseAPIError } from 'momobase'
+import { MomobaseAPIError } from "momobase";
 
 try {
-  await app.transactions.get('missing-id')
+	await app.transactions.get("missing-id");
 } catch (error) {
-  if (error instanceof MomobaseAPIError) {
-    console.error(error.status, error.code, error.message, error.body)
-  } else {
-    throw error
-  }
+	if (error instanceof MomobaseAPIError) {
+		console.error(error.status, error.code, error.message, error.body);
+	} else {
+		throw error;
+	}
 }
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `status` | HTTP status code |
-| `code` | Stable Momobase error code when the response provides one |
-| `message` | Human-readable error message |
-| `body` | Parsed response body when one is available |
+| Field     | Meaning                                                   |
+| --------- | --------------------------------------------------------- |
+| `status`  | HTTP status code                                          |
+| `code`    | Stable Momobase error code when the response provides one |
+| `message` | Human-readable error message                              |
+| `body`    | Parsed response body when one is available                |
 
 Network failures and cancellations remain native `fetch()` errors.
 
@@ -44,15 +44,15 @@ These failures throw `Error` without making a network request. Provider-specific
 Pass an `AbortSignal` in request options:
 
 ```ts
-const controller = new AbortController()
+const controller = new AbortController();
 
 const request = app.collections.create(payload, {
-  idempotencyKey: 'order-2',
-  signal: controller.signal
-})
+	idempotencyKey: "order-2",
+	signal: controller.signal,
+});
 
-controller.abort()
-await request
+controller.abort();
+await request;
 ```
 
 List methods also accept `signal` through their options argument.
