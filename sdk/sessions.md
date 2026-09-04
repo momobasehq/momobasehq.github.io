@@ -13,6 +13,8 @@ Before a request, the client:
 
 Concurrent requests share one refresh operation. The application client falls back to client-credential authentication when it has no valid refresh token. The administration client falls back to password authentication only when email and password are configured.
 
+The token refresh margin is applied when a token is cached. `expiresAt` is therefore the time at which the SDK will refresh, not necessarily the token's signed expiry time.
+
 ## Inspect and clear a session
 
 ```ts
@@ -26,6 +28,8 @@ admin.clearToken();
 ```
 
 `getToken()` returns a copy of the current token snapshot. `clearToken()` removes it and calls `onTokenChange(undefined)` when a callback is configured.
+
+`clearToken()` changes only local SDK state. For an administrator logout, call `await admin.logout()` first so Momobase revokes the server session, then call `admin.clearToken()`.
 
 ## Restore an administrator session
 
@@ -53,6 +57,8 @@ Use `setCredentials(email, password)` after a different administrator signs in. 
 ::: warning Protect browser sessions
 `onTokenChange` does not choose storage for you. Prefer secure, server-managed cookies where your architecture permits them. If you persist tokens in browser storage, account for script access, logout, expiry, and cross-tab synchronization.
 :::
+
+Store the token pair together. Restoring without `expiresInSeconds` deliberately forces a refresh on the next request, which is the safest choice when the original expiry is unavailable.
 
 ## Adjust the refresh window
 

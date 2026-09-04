@@ -13,6 +13,10 @@ Payment providers expose different contracts and operational behavior. Supportin
 
 Momobase keeps that complexity in one service. Applications use a stable payment contract while operators control provider accounts, routing rules, transaction data, and deployment infrastructure.
 
+## Who Momobase is for
+
+Momobase is designed for teams that can operate a Go service and maintain direct commercial relationships with payment providers. Application developers integrate with one payment API, provider authors translate upstream contracts, and operators manage credentials, routes, health, and reconciliation.
+
 ## What Momobase handles
 
 - Application credentials, administrator roles, and permissions.
@@ -29,7 +33,7 @@ Momobase is not a payment provider, merchant of record, or order-management syst
 
 Import the `momobase` Go package into your application and register the providers it needs. The included dummy provider is deterministic, intended for development, and moves no money.
 
-The [Momobase guide](/guide/) explains the runtime model, package setup, deployment, extensions, and provider adapters.
+Start with the [Momobase guide](/guide/) to understand the runtime model, or follow [Create your first payment](/guide/getting-started) for a working local instance. The [reference](/reference/configuration) documents configuration and public contracts.
 
 ::: warning Project status
 Momobase is early-stage software. Review its configuration, provider adapters, operational controls, and failure behavior before using it for production money movement.

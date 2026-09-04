@@ -28,7 +28,7 @@ const application = await admin.apps.create({
 
 const credential = await admin.apps.createCredential(application.id, {
 	name: "checkout-server",
-	scopes: "payments:create payments:read",
+	scopes: "collections:create disbursements:create transactions:read",
 });
 
 console.log(credential.credential.client_id, credential.client_secret);
@@ -63,6 +63,8 @@ await admin.routes.create({
 ```
 
 Provider methods also expose the adapter registry, settings and configuration updates, balances, and health snapshots. Route methods list routes and update their priority or active state.
+
+Lower route priorities are preferred. Routes at the same priority are tried from oldest to newest. A route can be created only after its provider account is active and loaded with the requested capability.
 
 ## Manage access
 
@@ -101,4 +103,11 @@ const analytics = await admin.analytics.transactions({
 | `transactions` | Transactions and audit records                         |
 | `analytics`    | Transaction aggregates                                 |
 
-Call `admin.logout()` to invalidate the active administrator session. See [Sessions and tokens](/sdk/sessions) for restoring and clearing sessions.
+To sign out, invalidate the server session and clear the SDK's in-memory token:
+
+```ts
+await admin.logout();
+admin.clearToken();
+```
+
+See [Sessions and tokens](/sdk/sessions) for restoring and persisting administrator sessions.

@@ -29,6 +29,8 @@ try {
 
 Network failures and cancellations remain native `fetch()` errors.
 
+Branch first on `MomobaseAPIError`. For retry decisions, use its HTTP `status` and stable `code`; do not parse the human-readable message.
+
 ## Handle local validation
 
 Before sending a collection or disbursement, the SDK requires:
@@ -55,10 +57,12 @@ controller.abort();
 await request;
 ```
 
-List methods also accept `signal` through their options argument.
+Application methods that accept request options, including payment-method discovery, forward `signal` to `fetch`.
 
 ## Retry safely
 
 The SDK retries once after `401` because that retry includes a token refresh. It does not retry network failures, timeouts, rate limits, or server errors.
 
 When retrying a collection or disbursement in application code, reuse the same idempotency key and identical payload. Back off before retrying `429` or transient `5xx` responses. Do not automatically retry validation, authorization, or other permanent `4xx` errors.
+
+A provider timeout can leave a transaction in `unknown`. Retrying with the same idempotency key reads that transaction instead of initiating payment through another provider.

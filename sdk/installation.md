@@ -4,7 +4,7 @@ This page installs `momobase` and creates each available client.
 
 ## Requirements
 
-- Node.js 22 or a browser with global `fetch()` and `AbortController` support.
+- Node.js 24 or a browser with global `fetch()` and `AbortController` support.
 - A reachable Momobase deployment.
 - An application credential for `MomobaseClient`, or administrator credentials for `MomobaseAdminClient`.
 
@@ -13,6 +13,8 @@ This page installs `momobase` and creates each available client.
 ```sh
 pnpm add momobase
 ```
+
+The package is an ECMAScript module and includes TypeScript declarations in its published `dist` directory.
 
 ## Create an application client
 
@@ -34,6 +36,8 @@ const app = new MomobaseClient({
 | `tokenSkewSeconds` | No       | Seconds before expiry at which the client refreshes; defaults to `30` |
 
 Keep this client in a trusted runtime because it stores an application secret.
+
+Create one long-lived client per credential instead of constructing a client for every request. This allows concurrent calls to share cached tokens and refresh work.
 
 ## Create an administration client
 
@@ -57,6 +61,8 @@ const admin = new MomobaseAdminClient({
 | `onTokenChange`     | No       | Callback invoked when the token pair changes or is cleared                           |
 
 You may start with credentials or restore an existing token pair. See [Sessions and tokens](/sdk/sessions) before persisting administrator tokens in a browser.
+
+`baseUrl` is the Momobase origin, such as `https://payments.example.com`. Do not append `/api/v1` or `/api/admin`; each client adds its own endpoint paths.
 
 ## Verify the client
 
