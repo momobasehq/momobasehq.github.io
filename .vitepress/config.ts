@@ -1,12 +1,18 @@
 import { defineConfig } from "vitepress";
+import { withMermaid } from "vitepress-plugin-mermaid";
 
-export default defineConfig({
+const config = defineConfig({
 	lang: "en-US",
 	title: "Momobase",
 	description:
 		"Embeddable payment orchestration with one API for every provider.",
 	cleanUrls: true,
 	lastUpdated: true,
+	vite: {
+		optimizeDeps: {
+			include: ["mermaid"],
+		},
+	},
 	head: [
 		["link", { rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
 		[
@@ -124,3 +130,5 @@ export default defineConfig({
 		outline: { level: [2, 3] },
 	},
 });
+
+export default withMermaid(config);
