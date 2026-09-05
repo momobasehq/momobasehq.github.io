@@ -1,3 +1,18 @@
 allowBuilds:
     esbuild: false
     vue-demi: true
+
+# vitepress-plugin-mermaid puts these mermaid transitives in Vite's
+# optimizeDeps.include, and Vite resolves those from the project root. pnpm keeps
+# transitive dependencies inside .pnpm/ instead, so `vitepress dev` fails with
+# "Failed to resolve dependency" for each of them.
+#
+# The plugin's README says to install with --shamefully-hoist, which flattens the
+# whole tree. Hoisting only the five packages it needs keeps everything else
+# isolated.
+publicHoistPattern:
+    - "@braintree/sanitize-url"
+    - dayjs
+    - debug
+    - cytoscape-cose-bilkent
+    - cytoscape
