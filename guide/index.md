@@ -4,6 +4,18 @@ Momobase is an embeddable payment orchestration service. Applications send colle
 
 Use Momobase when you need one payment contract across several providers while retaining control of credentials, routing, transaction records, and deployment. Momobase is not a payment provider, merchant of record, checkout interface, or order-management system.
 
+Every application sends its collections and disbursements to the same API. Momobase narrows that traffic into one payment contract, then fans each request out to the provider account that can settle it.
+
+```mermaid
+flowchart LR
+    Checkout[Checkout backend] --> MB
+    Payroll[Payroll backend] --> MB
+    Marketplace[Marketplace backend] --> MB
+    MB[Momobase, one payment contract] --> MobileMoney[Mobile money provider]
+    MB --> Bank[Bank provider]
+    MB --> Card[Card provider]
+```
+
 ## Runtime model
 
 A Go host application constructs one Momobase instance and registers the provider adapters compiled into that application. The instance owns its HTTP API, payment services, provider runtimes, workers, hooks, and database connections.
