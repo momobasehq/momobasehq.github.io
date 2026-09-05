@@ -13,5 +13,5 @@ import '@scalar/api-reference/style.css'
 </script>
 
 <ClientOnly>
-	<ApiReference :configuration="{ url: 'https://momobasehq.github.io/momobase/swagger.json', favicon: '/logo.svg', telemetry: false, showDeveloperTools: 'never' }" />
+	<ApiReference :configuration="{ url: '/momobase/swagger.json', favicon: '/logo.svg', telemetry: false, showDeveloperTools: 'never' }" />
 </ClientOnly>
