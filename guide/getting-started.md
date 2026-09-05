@@ -12,12 +12,7 @@ Install:
 
 Use a new directory so the tutorial's SQLite database and Go module remain isolated.
 
-Set local signing secrets. These values are only for the disposable development instance created by this tutorial:
-
-```sh
-export ADMIN_OAUTH_SECRET=local-admin-oauth-secret-at-least-32-characters
-export APP_OAUTH_SECRET=local-application-oauth-secret-at-least-32-characters
-```
+Momobase reads no environment variables, so there is nothing to export before you start. The instance below runs on `momobase.DefaultConfig()`, which is a development baseline with placeholder secrets.
 
 ## Create the host application
 
@@ -70,7 +65,34 @@ func main() {
 }
 ```
 
-`momobase.New` loads environment configuration and development defaults, creates `./data/momobase.db`, applies migrations, and prepares the API. The host registers the dummy adapter because Momobase does not register providers automatically.
+`momobase.New` uses `momobase.DefaultConfig()` because no `momobase.WithConfig` was supplied. That default creates `./data/momobase.db`, listens on `:9090`, applies migrations, and prepares the API. The host registers the dummy adapter because Momobase does not register providers automatically.
+
+To change a setting, copy the default and pass it back:
+
+```go
+cfg := momobase.DefaultConfig()
+cfg.App.Addr = ":8080"
+
+instance, err := momobase.New(
+	momobase.WithConfig(cfg),
+	momobase.WithProvider("dummy", dummy.New),
+)
+```
+
+The default encryption key and token secrets are placeholders good enough for this tutorial. `momobase.New` refuses to start with them once `cfg.App.Env` is `staging` or `production`. Replace them with real ones before deploying anything:
+
+```sh
+$ openssl rand -base64 32      # cfg.Security.EncryptionMasterKeyBase64
+uQ2nR7dK5xW0mP8vB3fJ6cZ1tY4sA9eL2gN5iX7oT0M=
+
+$ openssl rand -hex 32         # cfg.Security.AdminOAuthSecret
+e07a3f9d2c85b164a0e37d95c821f640b7a2e58d3c96041fa8b5d27e309c64a1
+
+$ openssl rand -hex 32         # cfg.Security.AppOAuthSecret
+1b84d603f7a29e51c0d84b37a625e9f01d73c8a5b40e69d2f817a30c5b96e284
+```
+
+See the [configuration reference](/reference/configuration) for every field.
 
 ## Create the first administrator
 

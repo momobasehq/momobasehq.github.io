@@ -17,32 +17,65 @@ SQLite is useful for local development and a single host. Use PostgreSQL or MySQ
 
 ## Configure explicitly
 
-Use `momobase.LoadConfig()` for environment-driven hosts or construct `momobase.Config` directly and pass it through `momobase.WithConfig`. Production and staging configurations reject default secrets, insecure public URLs, wildcard CORS, and remote PostgreSQL without TLS.
+Momobase reads no environment variables and no configuration files. Build a `momobase.Config` and pass it through `momobase.WithConfig`; where each value comes from is your application's decision.
 
-The complete environment baseline lives in [`.env.example`](https://github.com/momobasehq/momobase/blob/main/.env.example). Host applications decide whether and how to load `.env` files.
+```go
+cfg := momobase.DefaultConfig()
+cfg.App.Env = "production"
+cfg.App.PublicURL = "https://payments.example.com"
+cfg.App.CORSAllowedOrigins = []string{"https://checkout.example.com"}
+cfg.App.TrustedProxyCIDRs = []string{"10.0.0.0/8"}
 
-At minimum, set these values outside development:
+cfg.DB = momobase.DatabaseConfig{
+	Type:     "postgres",
+	Host:     "database.internal",
+	Port:     "5432",
+	User:     "momobase",
+	Password: secret("DB_PASSWORD"),
+	Name:     "momobase",
+	SSLMode:  "require",
+}
 
-```dotenv
-APP_ENV=production
-APP_PUBLIC_URL=https://payments.example.com
-CORS_ALLOWED_ORIGINS=https://checkout.example.com
-TRUSTED_PROXY_CIDRS=10.0.0.0/8
+cfg.Security.EncryptionMasterKeyBase64 = secret("ENCRYPTION_MASTER_KEY")
+cfg.Security.AdminOAuthSecret = secret("ADMIN_OAUTH_SECRET")
+cfg.Security.AppOAuthSecret = secret("APP_OAUTH_SECRET")
 
-DB_TYPE=postgres
-DB_HOST=database.internal
-DB_PORT=5432
-DB_USER=momobase
-DB_PASSWORD=<database secret>
-DB_NAME=momobase
-DB_SSLMODE=require
-
-ENCRYPTION_MASTER_KEY_BASE64=<base64-encoded 32-byte key>
-ADMIN_OAUTH_SECRET=<at least 32 random characters>
-APP_OAUTH_SECRET=<at least 32 random characters>
+instance, err := momobase.New(
+	momobase.WithConfig(cfg),
+	momobase.WithProvider("acme", acme.New),
+)
 ```
 
-Keep the database password, encryption key, OAuth secrets, and provider configuration in a secret manager. Back up the encryption key with the database: the database alone cannot recover encrypted provider configuration.
+`DefaultConfig()` is a development baseline: SQLite in `./data`, an all-zero encryption key, and placeholder token secrets. Production and staging configurations reject those defaults, insecure public URLs, wildcard CORS, and remote PostgreSQL without TLS, so a deployment that forgets one of them fails at startup rather than at the first payment.
+
+Read secrets from your secret manager, environment, or deployment platform in the host — the [configuration reference](/reference/configuration#read-configuration-from-the-environment) shows the environment-variable version of the same function. Keep the database password, encryption key, OAuth secrets, and provider configuration out of source control.
+
+## Generate the secrets
+
+Mint the encryption key and both signing secrets once, before the first deploy:
+
+```sh
+$ openssl rand -base64 32
+kEo8Xz2hQ9vTn4bWpL6yRc3mJf7sA1dZgU0iN5xVeQY=
+
+$ openssl rand -hex 32
+7c1a9f4e83b25d06ea4c17b98f3d0526ca8e71b4d92f6038ab5e4c17d0396f8a
+
+$ openssl rand -hex 32
+2f6b8d05c39a1e74fb0d62a85c197e34d0f8a2b61c95730ed48f2a6b039c5e17
+```
+
+Store them, then load them into `Config.Security`:
+
+```go
+cfg.Security.EncryptionMasterKeyBase64 = secret("ENCRYPTION_MASTER_KEY") // openssl rand -base64 32
+cfg.Security.AdminOAuthSecret = secret("ADMIN_OAUTH_SECRET")             // openssl rand -hex 32
+cfg.Security.AppOAuthSecret = secret("APP_OAUTH_SECRET")                 // openssl rand -hex 32
+```
+
+The encryption key must decode to exactly 32 bytes, so `-base64 32` is not a suggestion — `openssl rand -base64 24` produces a key that fails at startup. The OAuth secrets only need 32 characters or more. Use a different value for each of the three.
+
+Back up the encryption key with the database: the database alone cannot recover encrypted provider configuration. A lost key means unreadable provider credentials, and re-encrypting requires re-entering every provider account's configuration.
 
 ## Control migrations
 
@@ -71,7 +104,7 @@ Allow the process enough termination grace for Momobase's 10-second HTTP shutdow
 
 Every serving process with workers enabled starts its own health, reconciliation, and cleanup loops. Momobase does not coordinate a distributed worker lease.
 
-For multiple replicas, enable workers on one designated instance and set `WORKERS_ENABLED=false` on the others. Reassign that ownership during failover. Reconciliation is defensive against concurrent updates, but duplicate workers add provider traffic and operational noise.
+For multiple replicas, enable workers on one designated instance and set `Workers.Enabled` to `false` on the others. Reassign that ownership during failover. Reconciliation is defensive against concurrent updates, but duplicate workers add provider traffic and operational noise.
 
 ## Configure probes
 
@@ -86,7 +119,7 @@ The first two endpoints do not call providers. See [Operate Momobase](/guide/ope
 
 - Keep encryption and OAuth secrets outside source control.
 - Terminate TLS before the API and set the public URL to HTTPS.
-- Trust forwarded client addresses only from proxies listed in `TrustedProxyCIDRs`.
+- Trust forwarded client addresses only from proxies listed in `App.TrustedProxyCIDRs`.
 - Run migrations once before rolling out multiple application replicas.
 - Assign background-worker ownership deliberately when running more than one replica.
 - Monitor `/ping`, `/healthz`, provider health, reconciliation, and audit logs.
