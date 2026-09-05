@@ -8,6 +8,16 @@ const config = defineConfig({
 		"Embeddable payment orchestration with one API for every provider.",
 	cleanUrls: true,
 	lastUpdated: true,
+	vite: {
+		optimizeDeps: {
+			// mermaid imports fastdom's UMD build, which exports through
+			// module.exports and so has no ESM default export. Pre-bundling mermaid
+			// converts it; without this the dev server serves the raw file and the
+			// browser throws "doesn't provide an export named: 'default'".
+			// withMermaid appends its own entries to this list.
+			include: ["mermaid"],
+		},
+	},
 	head: [
 		["link", { rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
 		[
