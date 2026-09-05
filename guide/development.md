@@ -39,6 +39,8 @@ pnpm run lint
 pnpm run build
 ```
 
+The site uses VitePress. Keep tutorials, task-focused how-to guides, conceptual explanations, and reference pages distinct in purpose. Mermaid source belongs only where a flow or relationship is clearer than prose.
+
 ## Publish the OpenAPI contract
 
 Swagger annotations live beside the Go handlers. Pushing a semantic-version tag in `momobase` generates `swagger.json` and `swagger.yaml`, then publishes them to `https://momobasehq.github.io/momobase/`. The API reference reads that tagged contract directly.

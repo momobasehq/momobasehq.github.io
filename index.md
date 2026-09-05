@@ -15,6 +15,9 @@ hero:
         - theme: alt
           text: API reference
           link: /api-reference
+        - theme: alt
+          text: TypeScript SDK
+          link: /sdk/
 
 features:
     - icon: 💳
@@ -26,4 +29,16 @@ features:
     - icon: ⚙️
       title: Operational by default
       details: Route by service, method, country, currency, priority, and health, then reconcile unresolved transactions.
+    - icon: 🚀
+      title: Run your first payment
+      details: Build a local Go host, provision the dummy provider, and create a collection from end to end.
+      link: /guide/getting-started
+    - icon: 🧩
+      title: Build a provider
+      details: Implement the small Go contracts that adapt an upstream payment API to Momobase.
+      link: /guide/providers
+    - icon: 📚
+      title: Read the reference
+      details: Look up configuration, Go APIs, provider contracts, HTTP conventions, and generated endpoints.
+      link: /reference/configuration
 ---

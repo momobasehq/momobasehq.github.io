@@ -2,6 +2,8 @@
 
 Use `MomobaseClient` from a trusted service to discover routable payment methods, create collections or disbursements, and read the application's transactions.
 
+The client authenticates lazily. Call `await app.authenticate()` only when startup should verify the credential before doing other work.
+
 ## List routable payment methods
 
 Ask Momobase what can route before collecting payment details:
@@ -14,6 +16,8 @@ const { items } = await app.paymentMethods.list({
 ```
 
 `serviceType` and `country` are optional. The result contains only service and payment-method pairs available to the authenticated application.
+
+Currency is taken from the authenticated application. A method is listed only when at least one active route, provider account, runtime, capability, health snapshot, and circuit state currently allow it. Availability can change after discovery.
 
 ## Create a collection
 
@@ -38,6 +42,8 @@ Amounts are integer minor units, so `50000` is UGX 50,000. `account`, `scheme`, 
 
 Use one stable idempotency key for retries of the same operation. Do not reuse it for a different payload.
 
+The SDK does not generate idempotency keys. Omitting the key sends the request, but Momobase rejects it, so set `idempotencyKey` for every collection and disbursement.
+
 ## Create a disbursement
 
 ```ts
@@ -58,6 +64,8 @@ const payout = await app.disbursements.create(
 
 Collection and disbursement responses include `transaction_id`, `status`, `selected_provider`, `provider_reference`, and `platform_fee`.
 
+Possible statuses are `pending`, `processing`, `unknown`, `succeeded`, `failed`, `cancelled`, and `expired`. Treat `succeeded`, `failed`, `cancelled`, and `expired` as terminal. See [Payment lifecycle](/guide/payment-lifecycle).
+
 ## Read a transaction
 
 ```ts
@@ -66,6 +74,8 @@ const byReference = await app.transactions.getByReference("ORDER-1");
 ```
 
 `getByReference()` is scoped to the authenticated application. Use it when your business reference is the identifier available to the calling service.
+
+Transaction amounts and fees are integer minor units. Provider-specific `metadata` is sent to the selected adapter but is not persisted, while account and party fields become part of the transaction record.
 
 ## Methods
 

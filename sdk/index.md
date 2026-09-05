@@ -15,6 +15,24 @@ Both clients use the global `fetch()` implementation available in modern browser
 `MomobaseClient` holds an application client secret. Do not include that secret in a public browser or mobile bundle. Call it from a backend-for-frontend or another trusted service.
 :::
 
+## Authentication behavior
+
+Both clients authenticate lazily on the first API call. They cache access and refresh tokens in memory, refresh shortly before expiry, share one refresh operation across concurrent requests, and retry one request after an HTTP `401`.
+
+`MomobaseClient` can authenticate again with its fixed client credential. `MomobaseAdminClient` can fall back to password authentication only when email and password were configured.
+
+## Package exports
+
+The package exports:
+
+- `MomobaseClient` and `MomobaseAdminClient`;
+- `MomobaseAPIError`;
+- API request, response, session, and resource types;
+- `AdminPermissions`, `AppScopes`, and `PermissionWildcard`; and
+- `permitted`, which checks a permission list and honors the wildcard.
+
+Use the exported constants when building permission-aware interfaces, but retrieve the server's permission catalogue when an interface must support newer server permissions.
+
 ## Continue
 
 - [Install and configure the SDK](/sdk/installation).

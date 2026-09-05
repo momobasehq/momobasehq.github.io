@@ -53,8 +53,14 @@ export default defineConfig({
 					text: "Guide",
 					items: [
 						{ text: "Understand Momobase", link: "/guide/" },
+						{
+							text: "Payment lifecycle",
+							link: "/guide/payment-lifecycle",
+						},
+						{ text: "Routing", link: "/guide/routing" },
 						{ text: "Get started", link: "/guide/getting-started" },
 						{ text: "Deploy a host", link: "/guide/deployment" },
+						{ text: "Operate Momobase", link: "/guide/operations" },
 					],
 				},
 				{

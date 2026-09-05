@@ -1,12 +1,43 @@
 # Understand Momobase
 
-Momobase is a payment orchestration service. Your applications send collections and disbursements to one API, and Momobase routes each request through an eligible provider account.
+Momobase is an embeddable payment orchestration service. Applications send collections and disbursements to one API, and Momobase routes each request through an eligible provider account.
 
-This page explains the runtime model. Use [Get started](/guide/getting-started) to embed a development instance.
+Use Momobase when you need one payment contract across several providers while retaining control of credentials, routing, transaction records, and deployment. Momobase is not a payment provider, merchant of record, checkout interface, or order-management system.
+
+Every application sends its collections and disbursements to the same API. Momobase narrows that traffic into one payment contract, then fans each request out to the provider account that can settle it.
+
+```mermaid
+flowchart LR
+    Checkout[Checkout backend] --> MB
+    Payroll[Payroll backend] --> MB
+    Marketplace[Marketplace backend] --> MB
+    MB[Momobase, one payment contract] --> MobileMoney[Mobile money provider]
+    MB --> Bank[Bank provider]
+    MB --> Card[Card provider]
+```
 
 ## Runtime model
 
-A Momobase instance has four main parts:
+A Go host application constructs one Momobase instance and registers the provider adapters compiled into that application. The instance owns its HTTP API, payment services, provider runtimes, workers, hooks, and database connections.
+
+```mermaid
+flowchart LR
+    Client[Application backend] -->|Application API| HTTP[Momobase HTTP API]
+    Operator[Operator or admin tool] -->|Admin API| HTTP
+    Upstream[Payment provider] -->|Webhook| HTTP
+    Host[Go host application] -->|Constructs and configures| Instance[Momobase instance]
+    HTTP --> Services[Identity and payment services]
+    Services --> Routing[Routing engine]
+    Routing --> Runtime[Provider runtimes]
+    Runtime -->|Provider API| Upstream
+    Services --> Database[(SQLite, PostgreSQL, or MySQL)]
+    Workers[Health, reconciliation, cleanup] --> Runtime
+    Workers --> Database
+    Instance --> HTTP
+    Instance --> Workers
+```
+
+The main runtime parts are:
 
 | Part              | Responsibility                                                                                                   |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -15,47 +46,40 @@ A Momobase instance has four main parts:
 | Provider runtimes | Hold initialized provider adapters, health state, and circuit-breaker state for active accounts                  |
 | Workers           | Check provider health, reconcile unresolved transactions, and remove expired sessions                            |
 
-The instance runs inside a host Go application, which owns process startup, deployment, and provider selection.
+The host owns process startup, provider selection, deployment, and shutdown. Momobase owns the dependencies created by `momobase.New`, so the host must call `Close` for every successfully constructed instance.
 
-## Payment flow
+## Core concepts
 
-1. An application exchanges a client ID and secret for an access token.
-2. The application lists the payment methods that can currently route.
-3. It creates a collection or disbursement with an `Idempotency-Key`.
-4. Momobase normalizes the request and checks for an existing idempotent result.
-5. Payment-request hooks run before routing or persistence.
-6. Routing selects the highest-ranked active route whose provider account matches the service, payment method, country, and currency.
-7. The provider validates provider-specific account data before Momobase writes the transaction and attempt.
-8. Momobase calls the provider with a bounded context and persists the normalized result.
-9. A webhook or reconciliation check may advance an unresolved transaction later.
+- An **application** represents one API consumer and fixes the currency accepted for its payments.
+- An **application credential** grants selected application scopes and is exchanged for access and refresh tokens.
+- A **provider adapter** implements the Go interfaces needed to talk to one upstream payment system.
+- A **provider account** combines an adapter code with encrypted configuration, an environment, one country, one currency, and fee rules.
+- A **route** connects a service and payment method to one provider account at a priority.
+- A **transaction** is Momobase's normalized record of a collection or disbursement.
+- A **transaction attempt** records the provider call used to process a transaction.
 
-Provider network calls never run inside database transactions. Transaction status changes pass through one state machine, regardless of whether the change comes from the request, a webhook, or reconciliation.
+Read [Payment lifecycle](/guide/payment-lifecycle) for the request and recovery paths, and [Routing](/guide/routing) for route eligibility and fallback behavior.
 
-## Provider model
+## Trust boundaries
 
-A provider account combines an adapter code with encrypted credentials, one country, one currency, fee rules, and an environment. A route connects that account to a service and payment method.
+Application clients authenticate with client credentials and scopes. Administrators authenticate separately and receive permissions through roles. Provider configuration is encrypted before persistence and is never returned through the Admin API.
 
-A route is usable only when:
+Momobase validates its normalized payment contract. The selected provider adapter owns provider-specific validation for values such as phone numbers, bank accounts, card tokens, wallet addresses, and schemes.
 
-- the route and provider account are active;
-- the adapter declares the matching service and payment method;
-- the account country and currency match the payment;
-- an initialized provider runtime is available; and
-- health and circuit-breaker state allow the request.
-
-Provider-specific account formats stay in adapters. Momobase treats `account` as an opaque value until the selected provider validates and optionally normalizes it.
+Webhook processing has two authentication layers: Momobase checks the provider account's `webhook_secret`, then the adapter verifies the provider's signature or equivalent proof using the raw body and headers.
 
 ## Persistence and recovery
 
-Momobase stores applications, credentials, routing configuration, transactions, provider attempts, webhook deliveries, and audit records in SQLite, PostgreSQL, or MySQL.
+Momobase stores applications, credentials, routing configuration, transactions, attempts, webhook deliveries, health snapshots, sessions, and audit records in SQLite, PostgreSQL, or MySQL.
 
-Versioned migrations handle schema changes that require renames, drops, or backfills. GORM `AutoMigrate` then converges the schema with current models. See [Deploy a host application](/guide/deployment) for migration and backup guidance.
+Provider network calls do not run inside database transactions. The transaction and its initial attempt are committed first; the provider result is persisted afterward. If the outcome is unresolved, reconciliation queries the provider with bounded backoff. Verified webhooks can also advance the same transaction.
+
+All status updates use the same transition rules, whether the source is the initial request, a webhook, or reconciliation. Duplicate payment requests and webhooks are handled idempotently.
 
 ## Choose your next task
 
-- [Get started](/guide/getting-started).
+- Follow [Get started](/guide/getting-started) for a complete local payment.
+- [Embed Momobase](/guide/embedding) in a Go service.
 - [Deploy a host application](/guide/deployment).
-- [Add payment hooks](/guide/extensions).
 - [Build a provider adapter](/guide/providers).
-- [Configure an embedded instance](/guide/embedding).
-- [Develop and test the repository](/guide/development).
+- Use the [configuration reference](/reference/configuration) or [API reference](/api-reference).
