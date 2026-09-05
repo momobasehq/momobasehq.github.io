@@ -12,19 +12,25 @@ Provider contracts live in `github.com/momobasehq/momobase/providers`, and lifec
 
 ### `New(opts ...Option) (*Instance, error)`
 
-Loads or accepts configuration, validates it, opens the database, optionally applies migrations, seeds authorization data, and constructs the API, services, provider runtime manager, workers, and hooks.
+Validates configuration, opens the database, optionally applies migrations, seeds authorization data, and constructs the API, services, provider runtime manager, workers, and hooks.
 
-At least one provider factory must be registered. The caller owns every successful instance and must call `Close`.
+Configuration is `DefaultConfig()` unless `WithConfig` supplies one. At least one provider factory must be registered. The caller owns every successful instance and must call `Close`.
 
-### `LoadConfig() (Config, error)`
+### `DefaultConfig() Config`
 
-Loads configuration from environment variables. Invalid explicit boolean or duration values return an error. See [Configuration](/reference/configuration).
+Returns Momobase's development configuration baseline by value, so callers can edit it freely. Momobase reads no environment variables and no configuration files; a host that configures from the environment reads it itself and assigns the fields. See [Configuration](/reference/configuration).
+
+The placeholder credentials it carries are also exported as `DefaultEncryptionMasterKeyBase64`, `DefaultAdminOAuthSecret`, and `DefaultAppOAuthSecret`.
+
+### `Config.Validate() error`
+
+Reports configuration that is unsafe for `staging` or `production`. `New` calls it; call it yourself to fail earlier. Messages name the Go field rather than any environment variable.
 
 ## Options
 
 | Option                        | Effect                                                                                         |
 | ----------------------------- | ---------------------------------------------------------------------------------------------- |
-| `WithConfig(cfg)`             | Uses a complete `Config` instead of loading the environment                                    |
+| `WithConfig(cfg)`             | Uses a complete `Config` instead of `DefaultConfig()`                                          |
 | `WithConfigFunc(fn)`          | Mutates resolved configuration; functions run in supplied order after configuration resolution |
 | `WithAddr(addr)`              | Sets `Config.App.Addr`                                                                         |
 | `WithLogger(logger)`          | Replaces the configured JSON logger with a host-owned `*slog.Logger`                           |

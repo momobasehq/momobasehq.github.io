@@ -44,7 +44,7 @@ Momobase can configure three workers:
 | `reconciliation` | Query unresolved transactions and reprocess unmatched verified webhooks     |
 | `cleanup`        | Remove expired administrator and application sessions                       |
 
-Workers run once at startup and then at their configured interval. Disabling `WORKERS_ENABLED` prevents all three from being registered.
+Workers run once at startup and then at their configured interval. Setting `Workers.Enabled` to `false` prevents all three from being registered.
 
 ## Inspect provider runtimes
 
@@ -118,11 +118,11 @@ When an event supplies transaction fields, its amount, currency, country, extern
 
 ## Run migrations safely
 
-For a single development instance, `AUTO_MIGRATE=true` applies migrations during `momobase.New`.
+For a single development instance, `Features.AutoMigrate` defaults to `true` and applies migrations during `momobase.New`.
 
 For controlled deployments:
 
-1. Set `AUTO_MIGRATE=false` in every serving replica.
+1. Set `Features.AutoMigrate` to `false` in every serving replica.
 2. Back up the database and encryption master key.
 3. Construct one migration instance and call `instance.Migrate(ctx)`.
 4. Deploy serving replicas only after migration succeeds.

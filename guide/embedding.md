@@ -38,32 +38,63 @@ func main() {
 }
 ```
 
-`New()` reads environment configuration unless you provide `WithConfig()`. It opens the database and prepares the HTTP server, providers, and workers, so the caller must close the returned instance.
+`New()` uses `momobase.DefaultConfig()` unless you provide `WithConfig()`. It opens the database and prepares the HTTP server, providers, and workers, so the caller must close the returned instance.
 
 `New` does not start listeners or background workers. `Run` or `Serve` starts them after active provider accounts have been loaded.
 
 ## Configure the instance
 
-| Option                        | Purpose                                                         |
-| ----------------------------- | --------------------------------------------------------------- |
-| `WithConfig(cfg)`             | Use a complete `momobase.Config` instead of environment loading |
-| `WithConfigFunc(fn)`          | Modify the resolved configuration before startup                |
-| `WithAddr(addr)`              | Override the HTTP listen address                                |
-| `WithLogger(logger)`          | Use an application-owned `slog.Logger`                          |
-| `WithProvider(code, factory)` | Register one compiled provider                                  |
-| `WithProviders(factories)`    | Register several compiled providers                             |
+Momobase reads no environment variables and no configuration files. `momobase.DefaultConfig()` returns a complete development baseline; copy it, change what your deployment needs, and hand it back with `WithConfig`:
+
+```go
+cfg := momobase.DefaultConfig()
+cfg.App.Env = "production"
+cfg.App.PublicURL = "https://payments.example.com"
+cfg.App.CORSAllowedOrigins = []string{"https://checkout.example.com"}
+cfg.Features.AutoMigrate = false
+
+cfg.DB = momobase.DatabaseConfig{
+	Type:     "postgres",
+	Host:     "database.internal",
+	Port:     "5432",
+	User:     "momobase",
+	Password: secrets.DatabasePassword,
+	Name:     "momobase",
+	SSLMode:  "require",
+}
+
+cfg.Security.EncryptionMasterKeyBase64 = secrets.EncryptionKey
+cfg.Security.AdminOAuthSecret = secrets.AdminOAuthSecret
+cfg.Security.AppOAuthSecret = secrets.AppOAuthSecret
+
+instance, err := momobase.New(
+	momobase.WithConfig(cfg),
+	momobase.WithProvider("dummy", dummy.New),
+)
+```
+
+Where those values come from is your application's decision: environment variables, a flag set, a configuration file, or a secret manager. Momobase never looks. See [reading configuration from the environment](/reference/configuration#read-configuration-from-the-environment) for that pattern written out.
+
+Start from `DefaultConfig()` rather than building a `momobase.Config{}` literal. A struct you assemble field by field gets Go zero values, which means disabled workers, no migrations, and an empty database type.
+
+The defaults carry placeholder secrets so a development instance starts unconfigured. `momobase.New` rejects them once `App.Env` is `staging` or `production`.
+
+### Options
+
+| Option                        | Purpose                                                       |
+| ----------------------------- | ------------------------------------------------------------- |
+| `WithConfig(cfg)`             | Use a complete `momobase.Config` instead of `DefaultConfig()` |
+| `WithConfigFunc(fn)`          | Modify the resolved configuration before startup              |
+| `WithAddr(addr)`              | Override the HTTP listen address                              |
+| `WithLogger(logger)`          | Use an application-owned `slog.Logger`                        |
+| `WithProvider(code, factory)` | Register one compiled provider                                |
+| `WithProviders(factories)`    | Register several compiled providers                           |
 
 At least one provider is required. Provider codes become the values operators select when creating provider accounts.
 
-Use `LoadConfig` when most values come from the environment and the host needs to change a few of them:
+`WithConfig` is resolved before configuration mutators run, so `WithAddr` and every `WithConfigFunc` apply after it regardless of argument order. Use them for a small override on top of an otherwise complete configuration:
 
 ```go
-cfg, err := momobase.LoadConfig()
-if err != nil {
-	log.Fatal(err)
-}
-cfg.Features.AutoMigrate = false
-
 instance, err := momobase.New(
 	momobase.WithConfig(cfg),
 	momobase.WithAddr(":8080"),
@@ -71,7 +102,7 @@ instance, err := momobase.New(
 )
 ```
 
-Options are resolved before configuration mutators run, so `WithAddr` and every `WithConfigFunc` apply after `WithConfig` regardless of argument order. See the [configuration reference](/reference/configuration) for all fields and environment variables.
+See the [configuration reference](/reference/configuration) for every field and its default.
 
 ## Control the lifecycle
 

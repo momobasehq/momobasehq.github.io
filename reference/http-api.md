@@ -152,7 +152,7 @@ Clients may send `X-Request-ID` using visible ASCII and at most 64 characters. M
 
 Momobase allows only configured CORS origins and does not enable credentialed browser requests. Allowed request headers include `Authorization`, `Content-Type`, `X-Request-ID`, and `Idempotency-Key`.
 
-Forwarded client addresses are trusted only from `TRUSTED_PROXY_CIDRS`. Configure this list when a controlled reverse proxy fronts Momobase; otherwise leave it empty.
+Forwarded client addresses are trusted only from `App.TrustedProxyCIDRs`. Configure this list when a controlled reverse proxy fronts Momobase; otherwise leave it empty.
 
 ## Webhook authentication
 
