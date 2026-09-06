@@ -1,6 +1,6 @@
 # Understand Momobase
 
-Momobase is an embeddable payment orchestration service. Applications send collections and disbursements to one API, and Momobase routes each request through an eligible provider account.
+Momobase is a self-hosted payment orchestration service. Applications send collections and disbursements to one API, and Momobase routes each request through an eligible provider account.
 
 Use Momobase when you need one payment contract across several providers while retaining control of credentials, routing, transaction records, and deployment. Momobase is not a payment provider, merchant of record, checkout interface, or order-management system.
 
@@ -18,14 +18,16 @@ flowchart LR
 
 ## Runtime model
 
-A Go host application constructs one Momobase instance and registers the provider adapters compiled into that application. The instance owns its HTTP API, payment services, provider runtimes, workers, hooks, and database connections.
+One process runs one Momobase instance with a set of provider adapters compiled into it. The instance owns its HTTP API, payment services, provider runtimes, workers, hooks, and database connections.
+
+That process is either [Momobase Server](/server/), which is published ready to run, or a Go program of your own that [embeds the library](/library/). Both are the same runtime; they differ only in who compiles it and where configuration comes from.
 
 ```mermaid
 flowchart LR
     Client[Application backend] -->|Application API| HTTP[Momobase HTTP API]
     Operator[Operator or admin tool] -->|Admin API| HTTP
     Upstream[Payment provider] -->|Webhook| HTTP
-    Host[Go host application] -->|Constructs and configures| Instance[Momobase instance]
+    Host[Server or your Go program] -->|Constructs and configures| Instance[Momobase instance]
     HTTP --> Services[Identity and payment services]
     Services --> Routing[Routing engine]
     Routing --> Runtime[Provider runtimes]
@@ -46,7 +48,7 @@ The main runtime parts are:
 | Provider runtimes | Hold initialized provider adapters, health state, and circuit-breaker state for active accounts                  |
 | Workers           | Check provider health, reconcile unresolved transactions, and remove expired sessions                            |
 
-The host owns process startup, provider selection, deployment, and shutdown. Momobase owns the dependencies created by `momobase.New`, so the host must call `Close` for every successfully constructed instance.
+The host process owns startup, provider selection, deployment, and shutdown. Momobase owns everything the instance creates, and releases it on shutdown.
 
 ## Core concepts
 
@@ -76,10 +78,8 @@ Provider network calls do not run inside database transactions. The transaction 
 
 All status updates use the same transition rules, whether the source is the initial request, a webhook, or reconciliation. Duplicate payment requests and webhooks are handled idempotently.
 
-## Choose your next task
+## Next
 
-- Follow [Get started](/guide/getting-started) for a complete local payment.
-- [Embed Momobase](/guide/embedding) in a Go service.
-- [Deploy a host application](/guide/deployment).
-- [Build a provider adapter](/guide/providers).
-- Use the [configuration reference](/reference/configuration) or [API reference](/api-reference).
+- [Choose your integration](/guide/choose) — the server, the Go package, or both.
+- Read the [payment lifecycle](/guide/payment-lifecycle) for the request and recovery paths, and [routing](/guide/routing) for eligibility and fallback.
+- [Create your first payment](/guide/first-payment) against a running instance.

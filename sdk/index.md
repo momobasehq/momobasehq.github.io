@@ -1,5 +1,29 @@
 # TypeScript SDK
 
+[![npm version](https://img.shields.io/npm/v/momobase)](https://www.npmjs.com/package/momobase)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](https://www.npmjs.com/package/momobase?activeTab=dependencies)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/momobasehq/sdk/blob/main/LICENSE.txt)
+
+::: code-group
+
+```sh [npm]
+npm install momobase
+```
+
+```sh [pnpm]
+pnpm add momobase
+```
+
+```sh [yarn]
+yarn add momobase
+```
+
+```sh [bun]
+bun add momobase
+```
+
+:::
+
 `momobase` is a typed client for the Momobase application and administration APIs. Use it when a TypeScript service or trusted web application should call Momobase without managing HTTP envelopes and access-token refresh directly.
 
 ## Choose a client

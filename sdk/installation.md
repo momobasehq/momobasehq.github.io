@@ -5,14 +5,30 @@ This page installs `momobase` and creates each available client.
 ## Requirements
 
 - Node.js 24 or a browser with global `fetch()` and `AbortController` support.
-- A reachable Momobase deployment.
+- A reachable Momobase deployment — [run the server](/server/install) or [embed the library](/library/embedding).
 - An application credential for `MomobaseClient`, or administrator credentials for `MomobaseAdminClient`.
 
 ## Install
 
-```sh
+::: code-group
+
+```sh [npm]
+npm install momobase
+```
+
+```sh [pnpm]
 pnpm add momobase
 ```
+
+```sh [yarn]
+yarn add momobase
+```
+
+```sh [bun]
+bun add momobase
+```
+
+:::
 
 The package is an ECMAScript module and includes TypeScript declarations in its published `dist` directory.
 

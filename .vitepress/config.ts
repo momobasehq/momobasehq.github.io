@@ -7,6 +7,8 @@ const config = defineConfig({
 	description:
 		"Embeddable payment orchestration with one API for every provider.",
 	cleanUrls: true,
+	// The repository README is for GitHub, not a page on the site.
+	srcExclude: ["README.md"],
 	lastUpdated: true,
 	vite: {
 		optimizeDeps: {
@@ -46,11 +48,24 @@ const config = defineConfig({
 	themeConfig: {
 		logo: { src: "/logo.svg", alt: "Momobase" },
 		nav: [
-			{ text: "Home", link: "/" },
-			{ text: "About", link: "/about" },
 			{ text: "Guide", link: "/guide/" },
+			{ text: "Server", link: "/server/" },
+			{ text: "Library", link: "/library/" },
 			{ text: "SDK", link: "/sdk/" },
-			{ text: "API", link: "/api-reference" },
+			{
+				text: "API",
+				items: [
+					{ text: "HTTP conventions", link: "/api/conventions" },
+					{ text: "OpenAPI explorer", link: "/api-reference" },
+				],
+			},
+			{
+				text: "About",
+				items: [
+					{ text: "About Momobase", link: "/about" },
+					{ text: "Contributing", link: "/contributing" },
+				],
+			},
 		],
 
 		sidebar: {
@@ -60,32 +75,82 @@ const config = defineConfig({
 					items: [
 						{ text: "Understand Momobase", link: "/guide/" },
 						{
+							text: "Choose your integration",
+							link: "/guide/choose",
+						},
+						{
+							text: "Create your first payment",
+							link: "/guide/first-payment",
+						},
+					],
+				},
+				{
+					text: "How it works",
+					items: [
+						{
 							text: "Payment lifecycle",
 							link: "/guide/payment-lifecycle",
 						},
 						{ text: "Routing", link: "/guide/routing" },
-						{ text: "Get started", link: "/guide/getting-started" },
-						{ text: "Deploy a host", link: "/guide/deployment" },
-						{ text: "Operate Momobase", link: "/guide/operations" },
 					],
 				},
+			],
+			"/server/": [
 				{
-					text: "Extend Momobase",
+					text: "Momobase Server",
 					items: [
+						{ text: "Overview", link: "/server/" },
+						{ text: "Install", link: "/server/install" },
 						{
-							text: "Configure an instance",
-							link: "/guide/embedding",
+							text: "Configuration",
+							link: "/server/configuration",
 						},
-						{ text: "Add hooks", link: "/guide/extensions" },
-						{ text: "Build a provider", link: "/guide/providers" },
+						{
+							text: "Command-line interface",
+							link: "/server/cli",
+						},
 					],
 				},
 				{
-					text: "Development",
+					text: "Run it",
 					items: [
+						{ text: "Deployment", link: "/server/deployment" },
+						{ text: "Operations", link: "/server/operations" },
+					],
+				},
+			],
+			"/library/": [
+				{
+					text: "Go package",
+					items: [
+						{ text: "Overview", link: "/library/" },
 						{
-							text: "Develop and test",
-							link: "/guide/development",
+							text: "Embed an instance",
+							link: "/library/embedding",
+						},
+						{
+							text: "Configuration",
+							link: "/library/configuration",
+						},
+					],
+				},
+				{
+					text: "Extend it",
+					items: [
+						{ text: "Add payment hooks", link: "/library/hooks" },
+						{
+							text: "Build a provider adapter",
+							link: "/library/providers",
+						},
+					],
+				},
+				{
+					text: "Reference",
+					items: [
+						{ text: "Go API", link: "/library/go-api" },
+						{
+							text: "Provider API",
+							link: "/library/provider-api",
 						},
 					],
 				},
@@ -94,11 +159,16 @@ const config = defineConfig({
 				{
 					text: "TypeScript SDK",
 					items: [
-						{ text: "Introduction", link: "/sdk/" },
+						{ text: "Overview", link: "/sdk/" },
 						{
 							text: "Install and configure",
 							link: "/sdk/installation",
 						},
+					],
+				},
+				{
+					text: "Clients",
+					items: [
 						{
 							text: "Application client",
 							link: "/sdk/application-client",
@@ -112,6 +182,21 @@ const config = defineConfig({
 					],
 				},
 			],
+			"/api/": [
+				{
+					text: "API",
+					items: [
+						{
+							text: "HTTP conventions",
+							link: "/api/conventions",
+						},
+						{
+							text: "OpenAPI explorer",
+							link: "/api-reference",
+						},
+					],
+				},
+			],
 		},
 
 		search: { provider: "local" },
@@ -120,7 +205,7 @@ const config = defineConfig({
 				"https://github.com/momobasehq/momobasehq.github.io/edit/main/:path",
 		},
 		socialLinks: [
-			{ icon: "github", link: "https://github.com/momobasehq/momobase" },
+			{ icon: "github", link: "https://github.com/momobasehq" },
 		],
 		footer: {
 			message: "Released under the MIT License.",

@@ -18,7 +18,7 @@ Configuration is `DefaultConfig()` unless `WithConfig` supplies one. At least on
 
 ### `DefaultConfig() Config`
 
-Returns Momobase's development configuration baseline by value, so callers can edit it freely. Momobase reads no environment variables and no configuration files; a host that configures from the environment reads it itself and assigns the fields. See [Configuration](/reference/configuration).
+Returns Momobase's development configuration baseline by value, so callers can edit it freely. Momobase reads no environment variables and no configuration files; a host that configures from the environment reads it itself and assigns the fields. See [Configuration](/library/configuration).
 
 The placeholder credentials it carries are also exported as `DefaultEncryptionMasterKeyBase64`, `DefaultAdminOAuthSecret`, and `DefaultAppOAuthSecret`.
 

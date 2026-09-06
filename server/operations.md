@@ -1,6 +1,8 @@
-# Operate Momobase
+# Operate the server
 
-Use this guide to verify a running deployment, inspect workers and provider runtimes, and diagnose common payment failures. Administrative examples use `MomobaseAdminClient`; equivalent endpoints are available in the [API reference](/api-reference).
+Verify a running deployment, inspect workers and provider runtimes, and diagnose the payment failures that actually happen.
+
+The administration dashboard at `DASHBOARD_PATH` shows most of what follows. The examples here use the [TypeScript SDK](/sdk/) because a runbook needs to be scriptable; the same data is available from the [Admin API](/api-reference) directly.
 
 ## Check the process and database
 
@@ -36,7 +38,7 @@ for (const worker of workers.items) {
 }
 ```
 
-Momobase can configure three workers:
+The server configures three workers:
 
 | Worker           | Responsibility                                                              |
 | ---------------- | --------------------------------------------------------------------------- |
@@ -44,7 +46,7 @@ Momobase can configure three workers:
 | `reconciliation` | Query unresolved transactions and reprocess unmatched verified webhooks     |
 | `cleanup`        | Remove expired administrator and application sessions                       |
 
-Workers run once at startup and then at their configured interval. Setting `Workers.Enabled` to `false` prevents all three from being registered.
+Workers run once at start-up and then at their configured interval. `WORKERS_ENABLED=false` prevents all three from being registered. Running more than one replica requires [assigning worker ownership](/server/deployment#assign-worker-ownership).
 
 ## Inspect provider runtimes
 
@@ -109,28 +111,18 @@ Reconciliation always queries the provider account selected for the original att
 
 ## Diagnose rejected webhooks
 
-Webhook requests use `POST /webhooks/:providerAccountID` and must pass both checks:
+A rejected callback failed one of the [two authentication layers](/api/conventions#webhook-authentication), or its fields did not match the transaction. Work through them in order:
 
-1. `X-Webhook-Secret` must match the provider account's stored `webhook_secret`.
-2. The adapter's `VerifyWebhook` must authenticate and normalize the raw provider payload.
+1. Does `X-Webhook-Secret` match the provider account's stored `webhook_secret`?
+2. Does the adapter's `VerifyWebhook` accept the provider's own signature over the raw body?
+3. Do the event's amount, currency, country, external reference, and account match the stored transaction?
 
-When an event supplies transaction fields, its amount, currency, country, external reference, and account must match the stored transaction. Duplicate verified events are ignored. A valid event that arrives before Momobase can match its provider reference remains stored for the reconciliation worker to retry.
-
-## Run migrations safely
-
-For a single development instance, `Features.AutoMigrate` defaults to `true` and applies migrations during `momobase.New`.
-
-For controlled deployments:
-
-1. Set `Features.AutoMigrate` to `false` in every serving replica.
-2. Back up the database and encryption master key.
-3. Construct one migration instance and call `instance.Migrate(ctx)`.
-4. Deploy serving replicas only after migration succeeds.
-
-Migrations are forward-only. Momobase does not provide automatic down migrations.
+Duplicate verified events are ignored rather than rejected. An event that arrives before its provider reference can be matched is stored, not dropped — the reconciliation worker retries it.
 
 ## Preserve diagnostic context
 
-Momobase accepts or generates `X-Request-ID`, returns it in the response, and includes it in request logs. Carry this identifier into incident records.
+The server accepts or generates `X-Request-ID`, returns it in the response, and includes it in request logs. Carry this identifier into incident records.
 
-Provider errors are redacted and truncated before they are logged or persisted. Do not add raw credentials, payment accounts, webhook bodies, or access tokens to application logs when extending Momobase.
+Provider errors are redacted and truncated before they are logged or persisted. Keep raw credentials, payment accounts, webhook bodies, and access tokens out of your own logs too.
+
+Set `LOG_LEVEL=debug` when reproducing a failure, and put it back afterwards.

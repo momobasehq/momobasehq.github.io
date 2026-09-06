@@ -10,35 +10,38 @@ hero:
         alt: Momobase Logo
     actions:
         - theme: brand
-          text: Get started
-          link: /guide/getting-started
+          text: Run the server
+          link: /server/
+        - theme: brand
+          text: Embed the library
+          link: /library/
         - theme: alt
-          text: API reference
-          link: /api-reference
-        - theme: alt
-          text: TypeScript SDK
-          link: /sdk/
+          text: Understand Momobase
+          link: /guide/
 
 features:
+    - icon: 📦
+      title: Momobase Server
+      details: A container image and release binaries for Linux, macOS, and Windows. The HTTP API, its provider adapters, and an administration dashboard in one process.
+      link: /server/install
+    - icon: 🐹
+      title: Go package
+      details: Embed the payment engine in your own program to compile in provider adapters, payment hooks, and extra routes.
+      link: /library/
+    - icon: 🟦
+      title: TypeScript SDK
+      details: A dependency-free client for both the application and administration APIs, with token refresh handled for you.
+      link: /sdk/
     - icon: 💳
       title: One payment API
-      details: Give applications one contract while provider adapters handle credentials, payloads, and status models.
-    - icon: 🏠
-      title: Self-hosted
-      details: Keep provider credentials, routing rules, and transaction data on infrastructure you operate.
+      details: Applications get one contract while provider adapters absorb the credentials, payloads, and status models behind it.
+      link: /guide/
     - icon: ⚙️
       title: Operational by default
-      details: Route by service, method, country, currency, priority, and health, then reconcile unresolved transactions.
-    - icon: 🚀
-      title: Run your first payment
-      details: Build a local Go host, provision the dummy provider, and create a collection from end to end.
-      link: /guide/getting-started
-    - icon: 🧩
-      title: Build a provider
-      details: Implement the small Go contracts that adapt an upstream payment API to Momobase.
-      link: /guide/providers
-    - icon: 📚
-      title: Read the reference
-      details: Look up configuration, Go APIs, provider contracts, HTTP conventions, and generated endpoints.
-      link: /reference/configuration
+      details: Route by service, method, country, currency, priority, and health, then reconcile whatever is left unresolved.
+      link: /guide/routing
+    - icon: 🧭
+      title: Not sure which to install?
+      details: The server and the library run the same engine. Compare what each one gives you before committing to either.
+      link: /guide/choose
 ---

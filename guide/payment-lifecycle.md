@@ -104,9 +104,9 @@ After a committed status change, `OnTransactionChanged` observers receive the pr
 
 ## Webhook path
 
-Providers send callbacks to `POST /webhooks/:providerAccountID`. Momobase first checks the account's `X-Webhook-Secret`, then gives the raw body and headers to the adapter's `VerifyWebhook` implementation.
+Providers send callbacks to `POST /webhooks/:providerAccountID`, which authenticates them in [two layers](/api/conventions#webhook-authentication) before anything is applied.
 
-A verified event is stored idempotently before it is applied. When supplied, its amount, currency, country, external reference, and account must match the transaction. Events that arrive before their provider reference can be matched remain pending and are retried by reconciliation.
+A verified event is stored idempotently first. When it supplies transaction fields, they must match the transaction. An event that arrives before its provider reference can be matched stays pending, and reconciliation retries it.
 
 ## Reconciliation path
 
@@ -114,4 +114,4 @@ The reconciliation worker selects non-terminal transactions whose next check is 
 
 Unresolved checks use an exponential delay capped at 32 minutes. Terminal results clear the next reconciliation time. The same worker also retries stored webhook events that have not yet matched a transaction.
 
-See [Operate Momobase](/guide/operations) for worker and provider-health checks.
+See [Operate the server](/server/operations) for worker and provider-health checks.
