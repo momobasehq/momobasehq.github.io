@@ -2,7 +2,7 @@
 
 A provider adapter translates Momobase's normalized payment contract to one upstream payment API. This guide defines the required interfaces, registration step, and checks needed before an account can route.
 
-Start with the complete [`examples/customprovider`](https://github.com/momobasehq/momobase/tree/main/examples/customprovider) adapter when implementing a real provider.
+Start with the complete [`_examples/customprovider`](https://github.com/momobasehq/momobase/tree/main/_examples/customprovider) adapter when implementing a real provider.
 
 ## Implement the minimum contract
 
@@ -25,21 +25,20 @@ Momobase constructs a separate adapter for each provider account and whenever it
 
 Implement only the operations the upstream API supports:
 
-| Interface            | Method             | Purpose                                                                                  |
-| -------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
-| `Collector`          | `Collect`          | Request money from a customer                                                            |
-| `Disburser`          | `Disburse`         | Send money to a recipient                                                                |
-| `TransactionQuerier` | `QueryTransaction` | Read status and support reconciliation; required when any payment capability is declared |
-| `BalanceQuerier`     | `QueryBalance`     | Read the provider balance                                                                |
-| `HealthChecker`      | `HealthCheck`      | Verify upstream reachability and credentials                                             |
-| `WebhookVerifier`    | `VerifyWebhook`    | Authenticate and normalize callbacks                                                     |
-| `RequestValidator`   | `ValidateRequest`  | Validate provider-specific request data before persistence                               |
+Required, once a capability is declared:
+
+- `Collector` for every declared collection capability, `Disburser` for every declared disbursement capability;
+- `TransactionQuerier` whenever any payment capability is declared, so unresolved results can be reconciled.
+
+Optional, and worth implementing in this order: `HealthChecker` so the health worker can see the upstream, `WebhookVerifier` if the provider calls back, `RequestValidator` if it expects a particular account format, and `BalanceQuerier` if it reports balances.
+
+The [provider API reference](/library/provider-api#operation-interfaces) carries every signature.
 
 Return the status constants in `providers`, such as `TxPending`, `TxSucceeded`, or `TxFailed`. Amounts use integer minor currency units throughout Momobase.
 
-Every declared collection capability requires `Collector`; every declared disbursement capability requires `Disburser`. Duplicate or unsupported capabilities prevent the provider runtime from loading.
+Duplicate or unsupported capabilities prevent the provider runtime from loading.
 
-Provider calls have a 45-second context deadline. Honor cancellation and give any HTTP client its own appropriate transport settings. Helpers such as `providers.DoJSON`, `ParseAmountToMinor`, `FormatAmountMinor`, `PaymentStatus`, `RandomRef`, and `Redact` cover common adapter work; see the [provider API reference](/reference/provider-api).
+Provider calls are [bounded by a deadline](/library/provider-api#operation-interfaces), so honor cancellation and give any HTTP client its own transport settings. Helpers such as `providers.DoJSON`, `ParseAmountToMinor`, `FormatAmountMinor`, `PaymentStatus`, `RandomRef`, and `Redact` cover common adapter work; see the [provider API reference](/library/provider-api).
 
 ## Validate provider-specific accounts
 
@@ -64,7 +63,7 @@ Validation runs after route selection and before Momobase persists a transaction
 
 Include amount, currency, country, account, and external reference when the callback supplies them. Momobase compares these values with the transaction before applying the change. Never log provider credentials or unredacted raw payment data.
 
-Momobase also requires `X-Webhook-Secret` to match the provider account's `webhook_secret` before invoking the adapter. This protects the Momobase endpoint; it does not replace verification of the upstream provider's signature inside `VerifyWebhook`.
+The endpoint checks the account's `X-Webhook-Secret` before invoking your adapter, but that protects Momobase's endpoint only. `VerifyWebhook` must still verify the provider's own signature — see [webhook authentication](/api/conventions#webhook-authentication).
 
 ## Register the adapter
 

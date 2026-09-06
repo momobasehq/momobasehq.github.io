@@ -50,33 +50,16 @@ Availability can change after discovery because an operator may change a route o
 
 ## Provider capabilities
 
-Capabilities come from the adapter after `Init`. Each capability is one service and payment-method pair. Momobase rejects an invalid provider runtime when:
+Capabilities come from the adapter after `Init`. Each capability is one service and payment-method pair, and a route can be created only for an active, loaded provider account and one of its declared capabilities.
 
-- it declares an unsupported service or payment method;
-- it declares a collection without implementing `Collector`;
-- it declares a disbursement without implementing `Disburser`;
-- it exposes payment capabilities without implementing `TransactionQuerier`; or
-- it declares the same capability more than once.
-
-Routes can be created only for an active, loaded provider account and one of its declared capabilities.
+An adapter whose capabilities do not match what it implements fails to load at all, so it never reaches routing. [Build a provider adapter](/library/providers#implement-payment-operations) covers those rules.
 
 ## Health and circuit breaking
 
-Provider calls use a 45-second bounded context. Three consecutive provider-operation failures open the account's in-memory circuit for 30 seconds. After that interval, one half-open probe is allowed: success closes the circuit, while failure opens it again.
+Provider calls run under a bounded context. Three consecutive provider-operation failures open the account's in-memory circuit for 30 seconds. After that interval, one half-open probe is allowed: success closes the circuit, while failure opens it again.
 
 Caller cancellation does not count as a provider failure. Provider-request validation also bypasses the circuit because invalid customer data is not evidence of an upstream outage.
 
 The health worker separately records provider reachability. Three consecutive failed checks, or an open circuit, marks the provider down and removes its routes from consideration until health recovers.
 
-## Diagnose an unavailable route
-
-Check, in order:
-
-1. The application's currency and the payment country.
-2. The requested service and payment method.
-3. The route's active state and priority.
-4. The provider account's active state, country, and currency.
-5. The runtime's initialization state and capabilities.
-6. The latest provider health and circuit state.
-
-The [operations guide](/guide/operations) lists the Admin API resources that expose this state.
+When a request returns `ROUTE_UNAVAILABLE`, work through the checklist in [Operate the server](/server/operations#diagnose-route-unavailable).

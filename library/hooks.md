@@ -38,7 +38,7 @@ func Register(instance *momobase.Instance, appID string, maxAmount int64) {
 }
 ```
 
-The complete example lives in [`examples/extension`](https://github.com/momobasehq/momobase/tree/main/examples/extension).
+The complete example lives in [`examples/extension`](https://github.com/momobasehq/momobase/tree/main/_examples/extension).
 
 Bind hooks before `Run` or `Serve` so the first request and worker iteration see the expected handlers.
 
@@ -68,15 +68,4 @@ Use this hook for telemetry or best-effort side effects. It is not a durable mes
 
 The event excludes customer account data, provider credentials, raw responses, and webhook bodies.
 
-## Remove a handler
-
-`Bind()` returns an idempotent function that unregisters the handler:
-
-```go
-unbind := instance.OnTransactionChanged().Bind(handler)
-defer unbind()
-```
-
-Binding and removal are safe during concurrent invocation. A handler already included in the current invocation snapshot may still finish.
-
-See the [Go API reference](/reference/go-api#hooks) for complete event fields and binding behavior.
+`Bind` returns an idempotent unbind function; see [the Go API reference](/library/go-api#hooks) for binding semantics and the complete event fields.

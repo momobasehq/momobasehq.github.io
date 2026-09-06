@@ -15,7 +15,7 @@ Momobase keeps that complexity in one service. Applications use a stable payment
 
 ## Who Momobase is for
 
-Momobase is designed for teams that can operate a Go service and maintain direct commercial relationships with payment providers. Application developers integrate with one payment API, provider authors translate upstream contracts, and operators manage credentials, routes, health, and reconciliation.
+Momobase is designed for teams that can operate a service and maintain direct commercial relationships with payment providers. Application developers integrate with one payment API, provider authors translate upstream contracts, and operators manage credentials, routes, health, and reconciliation.
 
 ## What Momobase handles
 
@@ -31,9 +31,11 @@ Momobase is not a payment provider, merchant of record, or order-management syst
 
 ## How you use it
 
-Import the `momobase` Go package into your application and register the providers it needs. The included dummy provider is deterministic, intended for development, and moves no money.
+Momobase ships as three pieces. [Momobase Server](/server/) is the runnable distribution — a container image or a release binary, configured from the environment. [The Go package](/library/) is the same engine as a library, for programs that need their own provider adapters, hooks, or routes. [The TypeScript SDK](/sdk/) is how an application talks to whichever one you run.
 
-Start with the [Momobase guide](/guide/) to understand the runtime model, or follow [Create your first payment](/guide/getting-started) for a working local instance. The [reference](/reference/configuration) documents configuration and public contracts.
+The included dummy provider is deterministic, intended for development, and moves no money.
+
+Start with the [Momobase guide](/guide/) to understand the runtime model, [choose an integration](/guide/choose), or go straight to [creating your first payment](/guide/first-payment).
 
 ::: warning Project status
 Momobase is early-stage software. Review its configuration, provider adapters, operational controls, and failure behavior before using it for production money movement.

@@ -1,120 +1,25 @@
 # Create your first payment
 
-This tutorial runs Momobase locally with its deterministic dummy provider, provisions the minimum routing data, and creates a collection. The dummy provider moves no money.
+This tutorial provisions the minimum routing data on a running instance and creates a collection through the deterministic `dummy` provider. It moves no money.
 
 ## Before you begin
 
-Install:
+You need a Momobase instance on `http://localhost:9090` with an administrator already seeded. Either path gets you there:
 
-- the Go version declared by Momobase's `go.mod`;
-- `curl`; and
-- `jq` for extracting values from API responses.
+- [Install the server](/server/install) — one `docker run`, then `seed-admin`.
+- [Embed the library](/library/embedding) — write `main()`, then call `SeedAdmin`.
 
-Use a new directory so the tutorial's SQLite database and Go module remain isolated.
+You also need `curl` and `jq`.
 
-Momobase reads no environment variables, so there is nothing to export before you start. The instance below runs on `momobase.DefaultConfig()`, which is a development baseline with placeholder secrets.
-
-## Create the host application
+The examples below assume the administrator is `admin@example.com` with the password `local-password`. Substitute what you actually seeded.
 
 ```sh
-mkdir momobase-quickstart
-cd momobase-quickstart
-go mod init example.com/momobase-quickstart
-go get github.com/momobasehq/momobase@latest
+export MOMOBASE_URL=http://localhost:9090
 ```
-
-Create `main.go`:
-
-```go
-package main
-
-import (
-	"context"
-	"log"
-	"os"
-
-	"github.com/momobasehq/momobase"
-	"github.com/momobasehq/momobase/providers/dummy"
-)
-
-func main() {
-	instance, err := momobase.New(
-		momobase.WithProvider("dummy", dummy.New),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() { _ = instance.Close() }()
-
-	if len(os.Args) == 2 && os.Args[1] == "seed-admin" {
-		err := instance.SeedAdmin(
-			context.Background(),
-			"admin@example.com",
-			"local-password",
-			"Local Admin",
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
-
-	if err := instance.Run(); err != nil {
-		log.Fatal(err)
-	}
-}
-```
-
-`momobase.New` uses `momobase.DefaultConfig()` because no `momobase.WithConfig` was supplied. That default creates `./data/momobase.db`, listens on `:9090`, applies migrations, and prepares the API. The host registers the dummy adapter because Momobase does not register providers automatically.
-
-To change a setting, copy the default and pass it back:
-
-```go
-cfg := momobase.DefaultConfig()
-cfg.App.Addr = ":8080"
-
-instance, err := momobase.New(
-	momobase.WithConfig(cfg),
-	momobase.WithProvider("dummy", dummy.New),
-)
-```
-
-The default encryption key and token secrets are placeholders good enough for this tutorial. `momobase.New` refuses to start with them once `cfg.App.Env` is `staging` or `production`. Replace them with real ones before deploying anything:
-
-```sh
-$ openssl rand -base64 32      # cfg.Security.EncryptionMasterKeyBase64
-uQ2nR7dK5xW0mP8vB3fJ6cZ1tY4sA9eL2gN5iX7oT0M=
-
-$ openssl rand -hex 32         # cfg.Security.AdminOAuthSecret
-e07a3f9d2c85b164a0e37d95c821f640b7a2e58d3c96041fa8b5d27e309c64a1
-
-$ openssl rand -hex 32         # cfg.Security.AppOAuthSecret
-1b84d603f7a29e51c0d84b37a625e9f01d73c8a5b40e69d2f817a30c5b96e284
-```
-
-See the [configuration reference](/reference/configuration) for every field.
-
-## Create the first administrator
-
-Run the one-time setup path:
-
-```sh
-go run . seed-admin
-```
-
-Start the server and leave it running:
-
-```sh
-go run .
-```
-
-The API is now available at `http://localhost:9090`. Open another terminal in the same directory for the remaining commands.
 
 ## Authenticate as the administrator
 
 ```sh
-export MOMOBASE_URL=http://localhost:9090
-
 export ADMIN_TOKEN="$(
 	curl --fail --silent --show-error \
 		--data-urlencode 'grant_type=password' \
@@ -283,7 +188,7 @@ You now have a working Momobase host, administrator, application credential, pro
 
 ## Continue
 
-- [Embed Momobase](/guide/embedding) with explicit configuration and application routes.
-- Learn how the [payment lifecycle](/guide/payment-lifecycle) handles uncertain outcomes.
-- Replace the dummy adapter by [building a provider adapter](/guide/providers).
-- Review the [deployment guide](/guide/deployment) before leaving development mode.
+- Learn how the [payment lifecycle](/guide/payment-lifecycle) handles uncertain outcomes, and how [routing](/guide/routing) picked this provider account.
+- Do the same thing in TypeScript with the [SDK](/sdk/).
+- Replace the dummy adapter by [building a provider adapter](/library/providers).
+- [Configure](/server/configuration) and [deploy](/server/deployment) the server before leaving development mode.
