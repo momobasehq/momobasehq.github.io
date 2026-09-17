@@ -142,6 +142,10 @@ const config = defineConfig({
 							text: "Build a provider adapter",
 							link: "/library/providers",
 						},
+						{
+							text: "Official providers",
+							link: "/library/official-providers",
+						},
 					],
 				},
 				{
