@@ -1,8 +1,14 @@
 # Momobase Go package
 
+<div style="display:flex;gap:1rem;">
+
 [![Go reference](https://pkg.go.dev/badge/github.com/momobasehq/momobase.svg)](https://pkg.go.dev/github.com/momobasehq/momobase)
+
 [![Latest release](https://img.shields.io/github/v/release/momobasehq/momobase?label=release)](https://github.com/momobasehq/momobase/releases/latest)
+
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/momobasehq/momobase/blob/main/LICENSE.txt)
+
+</div>
 
 ```sh
 go get github.com/momobasehq/momobase@latest

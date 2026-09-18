@@ -1,8 +1,14 @@
 # TypeScript SDK
 
+<div style="display:flex;gap:1rem">
+
 [![npm version](https://img.shields.io/npm/v/momobase)](https://www.npmjs.com/package/momobase)
+
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](https://www.npmjs.com/package/momobase?activeTab=dependencies)
+
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/momobasehq/sdk/blob/main/LICENSE.txt)
+
+</div>
 
 ::: code-group
 

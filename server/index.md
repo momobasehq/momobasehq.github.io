@@ -1,9 +1,16 @@
 # Momobase Server
 
+<div style="display:flex;gap:1rem;">
+
 [![Latest release](https://img.shields.io/github/v/release/momobasehq/server?label=release)](https://github.com/momobasehq/server/releases/latest)
+
 [![Container image](https://img.shields.io/badge/ghcr.io-momobasehq%2Fserver-2496ed?logo=docker&logoColor=white)](https://github.com/momobasehq/server/pkgs/container/server)
+
 [![Build](https://img.shields.io/github/actions/workflow/status/momobasehq/server/ci.yml?branch=main&label=build)](https://github.com/momobasehq/server/actions/workflows/ci.yml)
+
 [![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/momobasehq/server/blob/main/LICENSE.txt)
+
+</div>
 
 ```sh
 docker run -p 9090:9090 -v momobase-data:/data ghcr.io/momobasehq/server
