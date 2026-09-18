@@ -37,10 +37,29 @@ The server wraps [the Go library](/library/) and supplies the parts a library ca
 
 ## Compiled providers
 
-A build can only execute the adapters compiled into it. The published builds register `dummy`, a deterministic simulator that moves no money, so a fresh deployment can be exercised end to end before any real credentials exist.
+A build can only execute the adapters compiled into it. Since v0.3.0 the published builds register the [official providers](/library/official-providers) alongside `dummy`:
 
-::: warning Adding a real provider means rebuilding
-Provider adapters are compiled in, not loaded at runtime. To run a real payment rail you fork the server repository, add the adapter to `providers/providers.go`, and build your own image or binary — or [embed the library](/library/) directly and keep your `main()`.
+| Code          | Provider          | Collections        | Disbursements | Verified webhooks |
+| ------------- | ----------------- | ------------------ | ------------- | ----------------- |
+| `dummy`       | In-tree simulator | Simulated          | Simulated     | No                |
+| `mtn`         | MTN MoMo          | Mobile money       | Mobile money  | No                |
+| `airtel`      | Airtel Money      | Mobile money       | Mobile money  | No                |
+| `yopayments`  | Yo! Payments      | Mobile money       | Mobile money  | No                |
+| `marzpay`     | MarzPay           | Mobile money, card | Mobile money  | Yes               |
+| `flutterwave` | Flutterwave       | Mobile money       | Mobile money  | Yes               |
+
+The first column is the provider code an operator selects when creating a provider account. Registering an adapter costs nothing until an account exists for its code, and each account is configured entirely through the Admin API — no rebuild, and no credentials in the environment.
+
+`dummy` is a deterministic simulator that moves no money, so a fresh deployment can still be exercised end to end before any real credentials exist.
+
+::: warning The official providers are under testing
+Most of these adapters have not yet run against a real merchant account in every market they target. Treat them as unproven against live money: start in each provider's sandbox, and note that MarzPay has no sandbox endpoint — its adapter always calls the live API.
+
+[TESTING.md](https://github.com/momobasehq/providers/blob/main/TESTING.md) explains what most needs testing and how to report what you find.
+:::
+
+::: info Any other provider means rebuilding
+Provider adapters are compiled in, not loaded at runtime. To run a rail outside the table above you fork the server repository, add the adapter to `providers/providers.go`, and build your own image or binary — or [embed the library](/library/) directly and keep your `main()`.
 
 If your adapters are private or change often, the library is the better fit. [Compare the two](/guide/choose).
 :::
