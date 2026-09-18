@@ -1,5 +1,17 @@
 # Official providers
 
+<div style="display:flex;gap:1rem;">
+
+[![Go reference](https://pkg.go.dev/badge/github.com/momobasehq/providers.svg)](https://pkg.go.dev/github.com/momobasehq/providers)
+
+[![Latest release](https://img.shields.io/github/v/release/momobasehq/providers?label=release)](https://github.com/momobasehq/providers/releases/latest)
+
+[![Build](https://img.shields.io/github/actions/workflow/status/momobasehq/providers/ci.yml?branch=main&label=build)](https://github.com/momobasehq/providers/actions/workflows/ci.yml)
+
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/momobasehq/providers/blob/main/LICENSE.txt)
+
+</div>
+
 [`github.com/momobasehq/providers`](https://github.com/momobasehq/providers) is the set of provider adapters maintained alongside Momobase. Each adapter is its own package, so an application compiles only the providers it registers.
 
 ```sh
