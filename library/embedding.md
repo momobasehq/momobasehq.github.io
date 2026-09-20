@@ -86,6 +86,16 @@ instance.App().Get("/ready", func(c fiber.Ctx) error {
 
 Register routes before calling `Run` or `Serve`, and keep them out of the `/api/v1`, `/api/admin`, and `/webhooks` prefixes.
 
+`/` is already served from [`App.PublicDir`](/library/configuration#application) when that directory exists — `mb_public` by default. A request matching no file under it falls through to a route registered here, so mounting your own pages or a dashboard alongside a static site works either way round. `instance.PublicDir()` tells you which case you are in:
+
+```go
+if instance.PublicDir() == "" {
+	instance.App().Get("/", func(c fiber.Ctx) error {
+		return c.Redirect().To("/console/")
+	})
+}
+```
+
 Momobase uses Fiber and fasthttp, so `App()` is not a standard-library `http.Handler`. Keep a separate listener or add an adapter if the rest of your application uses `net/http`.
 
 Use `DB()` and `Logger()` only when an extension needs the instance-owned database handle or structured logger; prefer the public APIs for payment operations. Do not close the value returned by `DB` — `instance.Close` owns that pool. A logger supplied with `WithLogger` stays owned by the host.

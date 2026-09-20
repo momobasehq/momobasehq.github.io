@@ -1,6 +1,6 @@
 # Install Momobase Server
 
-Every install path below produces the same thing: an API on `http://localhost:9090` and a dashboard on `http://localhost:9090/dashboard/`. Pick whichever suits your platform, then [create your first payment](/guide/first-payment).
+Every install path below produces the same thing: an API on `http://localhost:9090` and a dashboard on `http://localhost:9090/_/`. Pick whichever suits your platform, then [create your first payment](/guide/first-payment).
 
 A fresh install starts on development placeholders and a local SQLite file. That is deliberate — it lets you exercise the whole system before holding any real credentials. Set the [three secrets](/server/configuration#secrets) before it is anything but a local trial.
 
@@ -232,7 +232,9 @@ curl --fail --silent http://localhost:9090/healthz
 { "ok": true }
 ```
 
-Then open `http://localhost:9090/dashboard/` and sign in as the administrator you seeded.
+Then open `http://localhost:9090/_/` and sign in as the administrator you seeded.
+
+`http://localhost:9090/` redirects there until you put a directory named `mb_public` beside the binary; its files are then served at the root. See [the public directory](/server/configuration#migrations-dashboard-and-the-public-directory).
 
 ## Next
 

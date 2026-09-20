@@ -63,11 +63,12 @@ An instance can be served once. Calling `Serve` after it has already served or a
 
 ## Host integration
 
-| Method     | Result         | Use                                                                          |
-| ---------- | -------------- | ---------------------------------------------------------------------------- |
-| `App()`    | `*fiber.App`   | Add Fiber routes, mount the application, or exercise it in tests             |
-| `DB()`     | `*gorm.DB`     | Access the instance-owned database when an extension cannot use a public API |
-| `Logger()` | `*slog.Logger` | Write extension logs through the configured structured logger                |
+| Method        | Result         | Use                                                                          |
+| ------------- | -------------- | ---------------------------------------------------------------------------- |
+| `App()`       | `*fiber.App`   | Add Fiber routes, mount the application, or exercise it in tests             |
+| `DB()`        | `*gorm.DB`     | Access the instance-owned database when an extension cannot use a public API |
+| `Logger()`    | `*slog.Logger` | Write extension logs through the configured structured logger                |
+| `PublicDir()` | `string`       | Reports the static directory served at `/`, empty when there is none         |
 
 `App` uses Fiber v3 and fasthttp; it is not a standard-library `http.Handler`. Database callers must not close the handle returned by `DB` because the instance owns it.
 

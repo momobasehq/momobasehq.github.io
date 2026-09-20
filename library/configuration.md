@@ -33,10 +33,15 @@ instance, err := momobase.New(
 | `PublicURL`          | `string`   | `http://localhost:9090` | Externally reachable base URL                                |
 | `CORSAllowedOrigins` | `[]string` | `http://localhost:9090` | Browser origins allowed by CORS                              |
 | `TrustedProxyCIDRs`  | `[]string` | empty                   | Proxy addresses or CIDRs trusted to supply forwarded headers |
+| `PublicDir`          | `string`   | `mb_public`             | Directory of static files served at `/`                      |
 
 Leave `TrustedProxyCIDRs` empty when no proxy sits in front of Momobase. When it is empty, rate limiting and request logs use the immediate peer address. Add only proxies you control because callers can forge forwarded headers.
 
 `Env` is compared against `staging` and `production` exactly; any other value, including `test` or an empty string, skips the safety checks.
+
+`PublicDir` is resolved relative to the process working directory and holds your own site — a landing page, documentation, a checkout. Momobase ships no content for it, so a missing directory is the normal case rather than an error: `/` is then left unrouted for [a route you add yourself](/library/embedding#extend-the-fiber-application). Set it to an empty string to serve nothing at all. `instance.PublicDir()` reports the directory actually being served, which is empty when the configured one does not exist.
+
+Nothing under it can shadow the API: the static route is registered after every other one and a request matching no file falls through to whatever would have answered it, including routes you mount on `App()` afterwards.
 
 ## Logging
 

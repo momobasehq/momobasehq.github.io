@@ -33,7 +33,7 @@ flowchart LR
 
 ## What it adds to the library
 
-The server wraps [the Go library](/library/) and supplies the parts a library cannot: a command-line interface, environment-based configuration, a `.env` loader, and the compiled dashboard bundle. The payment engine, HTTP API, and database schema are the library's.
+The server wraps [the Go library](/library/) and supplies the parts a library cannot: a command-line interface, environment-based configuration, a `.env` loader, the compiled dashboard bundle on `/_`, and a `mb_public` directory served at `/`. The payment engine, HTTP API, and database schema are the library's.
 
 ## Compiled providers
 
