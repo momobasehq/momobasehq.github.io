@@ -12,7 +12,7 @@ flags  >  environment  >  .env file  >  built-in defaults
 cp .env.example .env
 ```
 
-Only three settings have a flag equivalent — `--addr`, `--dashboard`, and `--dashboard-path`. Everything else is set through the environment. See [Command-line interface](/server/cli).
+Only four settings have a flag equivalent — `--addr`, `--dashboard`, `--dashboard-path`, and `--public-dir`. Everything else is set through the environment. See [Command-line interface](/server/cli).
 
 ## Secrets
 
@@ -107,13 +107,18 @@ Durations are whole positive integers in the unit named by the variable. A non-n
 
 Workers run once when serving starts and then at the configured interval. The individual switches have no effect while `WORKERS_ENABLED` is `false`. Running more than one replica requires [assigning worker ownership](/server/deployment#assign-worker-ownership).
 
-## Migrations and dashboard
+## Migrations, dashboard, and the public directory
 
-| Variable            | Default      | Description                                         |
-| ------------------- | ------------ | --------------------------------------------------- |
-| `AUTO_MIGRATE`      | `true`       | Applies pending migrations at start-up              |
-| `DASHBOARD_ENABLED` | `true`       | Serves the administration dashboard (`--dashboard`) |
-| `DASHBOARD_PATH`    | `/dashboard` | URL prefix for the dashboard (`--dashboard-path`)   |
+| Variable            | Default     | Description                                         |
+| ------------------- | ----------- | --------------------------------------------------- |
+| `AUTO_MIGRATE`      | `true`      | Applies pending migrations at start-up              |
+| `DASHBOARD_ENABLED` | `true`      | Serves the administration dashboard (`--dashboard`) |
+| `DASHBOARD_PATH`    | `/_`        | URL prefix for the dashboard (`--dashboard-path`)   |
+| `PUBLIC_DIR`        | `mb_public` | Static files served at `/` (`--public-dir`)         |
+
+`PUBLIC_DIR` is resolved relative to the working directory, and is yours to fill: a landing page, a documentation site, a checkout — anything static. A missing directory is the normal case rather than an error, and then `/` redirects to the dashboard instead. Neither one takes a path the API or the dashboard already answers, so adding a public directory cannot shadow `/api`, `/webhooks`, or `DASHBOARD_PATH`; a request matching no file under it is a 404.
+
+With `DASHBOARD_ENABLED=false` and no public directory, `/` is a 404.
 
 With `AUTO_MIGRATE=false` the server logs any pending migrations by name and starts without applying them. See [Control migrations](/server/deployment#control-migrations).
 
