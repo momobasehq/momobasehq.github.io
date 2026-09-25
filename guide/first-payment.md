@@ -188,6 +188,7 @@ You now have a working Momobase host, administrator, application credential, pro
 
 ## Continue
 
+- Keep going with the short [tutorials](/tutorials/): the dashboard, the SDK, webhooks, and hooks.
 - Learn how the [payment lifecycle](/guide/payment-lifecycle) handles uncertain outcomes, and how [routing](/guide/routing) picked this provider account.
 - Do the same thing in TypeScript with the [SDK](/sdk/).
 - Replace the dummy adapter by [building a provider adapter](/library/providers).

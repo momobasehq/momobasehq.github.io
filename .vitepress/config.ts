@@ -49,6 +49,7 @@ const config = defineConfig({
 		logo: { src: "/logo.svg", alt: "Momobase" },
 		nav: [
 			{ text: "Guide", link: "/guide/" },
+			{ text: "Tutorials", link: "/tutorials/" },
 			{ text: "Server", link: "/server/" },
 			{ text: "Library", link: "/library/" },
 			{ text: "SDK", link: "/sdk/" },
@@ -92,6 +93,54 @@ const config = defineConfig({
 							link: "/guide/payment-lifecycle",
 						},
 						{ text: "Routing", link: "/guide/routing" },
+					],
+				},
+			],
+			"/tutorials/": [
+				{
+					text: "Tutorials",
+					items: [{ text: "Overview", link: "/tutorials/" }],
+				},
+				{
+					text: "Use Momobase",
+					items: [
+						{
+							text: "Set up payments in the dashboard",
+							link: "/tutorials/dashboard-setup",
+						},
+						{
+							text: "Add a backup provider",
+							link: "/tutorials/dashboard-fallback",
+						},
+						{
+							text: "Monitor payments and providers",
+							link: "/tutorials/dashboard-monitor",
+						},
+						{
+							text: "Give a teammate limited access",
+							link: "/tutorials/dashboard-team",
+						},
+					],
+				},
+				{
+					text: "Build with Momobase",
+					items: [
+						{
+							text: "Take payments from Node.js",
+							link: "/tutorials/sdk-checkout",
+						},
+						{
+							text: "Settle a payment with a webhook",
+							link: "/tutorials/webhook",
+						},
+						{
+							text: "Reject large payments",
+							link: "/tutorials/payment-limit",
+						},
+						{
+							text: "Notify your backend",
+							link: "/tutorials/notify-backend",
+						},
 					],
 				},
 			],
