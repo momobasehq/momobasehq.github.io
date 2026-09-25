@@ -259,6 +259,11 @@ const config = defineConfig({
 		},
 		socialLinks: [
 			{ icon: "github", link: "https://github.com/momobasehq" },
+			{ icon: "npm", link: "https://www.npmjs.com/package/momobase" },
+			{
+				icon: "linkedin",
+				link: "https://www.linkedin.com/company/momobase",
+			},
 		],
 		footer: {
 			message: "Released under the MIT License.",
