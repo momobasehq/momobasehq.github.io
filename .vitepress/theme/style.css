@@ -1,35 +1,35 @@
 :root {
-	--vp-c-brand-1: #1d4ed8;
-	--vp-c-brand-2: #1e40af;
-	--vp-c-brand-3: #2563eb;
-	--vp-c-brand-soft: rgb(37 99 235 / 12%);
-	--vp-button-brand-border: #2563eb;
+	--vp-c-brand-1: #27272a;
+	--vp-c-brand-2: #18181b;
+	--vp-c-brand-3: #3f3f46;
+	--vp-c-brand-soft: rgb(63 63 70 / 12%);
+	--vp-button-brand-border: #3f3f46;
 	--vp-button-brand-text: #fff;
-	--vp-button-brand-bg: #2563eb;
-	--vp-button-brand-hover-border: #1d4ed8;
+	--vp-button-brand-bg: #3f3f46;
+	--vp-button-brand-hover-border: #27272a;
 	--vp-button-brand-hover-text: #fff;
-	--vp-button-brand-hover-bg: #1d4ed8;
-	--vp-button-brand-active-border: #1e40af;
+	--vp-button-brand-hover-bg: #27272a;
+	--vp-button-brand-active-border: #18181b;
 	--vp-button-brand-active-text: #fff;
-	--vp-button-brand-active-bg: #1e40af;
-	--vp-home-hero-name-color: #1d4ed8;
+	--vp-button-brand-active-bg: #18181b;
+	--vp-home-hero-name-color: #27272a;
 }
 
 .dark {
-	--vp-c-brand-1: #60a5fa;
-	--vp-c-brand-2: #93c5fd;
-	--vp-c-brand-3: #3b82f6;
-	--vp-c-brand-soft: rgb(96 165 250 / 16%);
-	--vp-button-brand-border: #60a5fa;
+	--vp-c-brand-1: #e4e4e7;
+	--vp-c-brand-2: #f4f4f5;
+	--vp-c-brand-3: #a1a1aa;
+	--vp-c-brand-soft: rgb(228 228 231 / 16%);
+	--vp-button-brand-border: #e4e4e7;
 	--vp-button-brand-text: #1b1b1f;
-	--vp-button-brand-bg: #60a5fa;
-	--vp-button-brand-hover-border: #93c5fd;
+	--vp-button-brand-bg: #e4e4e7;
+	--vp-button-brand-hover-border: #f4f4f5;
 	--vp-button-brand-hover-text: #1b1b1f;
-	--vp-button-brand-hover-bg: #93c5fd;
-	--vp-button-brand-active-border: #bfdbfe;
+	--vp-button-brand-hover-bg: #f4f4f5;
+	--vp-button-brand-active-border: #ffffff;
 	--vp-button-brand-active-text: #1b1b1f;
-	--vp-button-brand-active-bg: #bfdbfe;
-	--vp-home-hero-name-color: #60a5fa;
+	--vp-button-brand-active-bg: #ffffff;
+	--vp-home-hero-name-color: #e4e4e7;
 }
 
 .VPImage {
@@ -43,4 +43,8 @@
 
 .image-src {
 	border-radius: 20px;
+}
+
+.vp-doc a {
+	background: var(--vp-c-warning-soft);
 }
