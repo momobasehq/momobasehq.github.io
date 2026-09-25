@@ -21,7 +21,7 @@ Momobase Server is the runnable distribution: the HTTP API, the provider adapter
 It is published as a container image and as signed archives for Linux, macOS, and Windows. Configuration comes from the environment rather than from code, so nothing here needs a Go toolchain.
 
 ```mermaid
-flowchart LR
+flowchart TD
     Client[Application backends] --> Proxy[TLS proxy]
     Operator[Operators] --> Proxy
     Provider[Payment providers] -->|Webhooks| Proxy

@@ -14,6 +14,9 @@ importers:
             "@eslint/js":
                 specifier: ^10.0.1
                 version: 10.0.1(eslint@10.9.1)
+            "@mermaid-js/layout-elk":
+                specifier: ^0.2.3
+                version: 0.2.3(mermaid@11.17.2)
             eslint:
                 specifier: ^10.9.1
                 version: 10.9.1
@@ -809,6 +812,14 @@ packages:
             {
                 integrity: sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ==,
             }
+
+    "@mermaid-js/layout-elk@0.2.3":
+        resolution:
+            {
+                integrity: sha512-m46RVGfvKK1PSMdAFGDz2nksI4jusEkFxvf0lb48bYWmqLQxZpjtpruiw29MbOy9rlWJtuMf9EzG9fAF8CVZbg==,
+            }
+        peerDependencies:
+            mermaid: ^11.0.2
 
     "@mermaid-js/mermaid-mindmap@9.3.0":
         resolution:
@@ -2459,6 +2470,12 @@ packages:
         resolution:
             {
                 integrity: sha512-dVoH9z+MY+C9IilgGCk3YfFqjLi3fChm2OiKJMzh6axrJ5qwxqWaZamgmHrpv22CN/KdbZJuGEGgfQoL00LTdg==,
+            }
+
+    elkjs@0.9.3:
+        resolution:
+            {
+                integrity: sha512-f/ZeWvW/BCXbhGEf1Ujp29EASo/lk1FDnETgNKwJrsVvGZhUWCZyg3xLJjAsxfOmt8KjswHmI5EwCQcPMpOYhQ==,
             }
 
     emoji-regex-xs@1.0.0:
@@ -4714,6 +4731,12 @@ snapshots:
 
     "@marijn/find-cluster-break@1.0.4": {}
 
+    "@mermaid-js/layout-elk@0.2.3(mermaid@11.17.2)":
+        dependencies:
+            d3: 7.9.0
+            elkjs: 0.9.3
+            mermaid: 11.17.2
+
     "@mermaid-js/mermaid-mindmap@9.3.0":
         dependencies:
             "@braintree/sanitize-url": 6.0.4
@@ -5921,6 +5944,8 @@ snapshots:
     dompurify@3.4.14:
         optionalDependencies:
             "@types/trusted-types": 2.0.7
+
+    elkjs@0.9.3: {}
 
     emoji-regex-xs@1.0.0: {}
 

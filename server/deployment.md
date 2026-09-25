@@ -1,7 +1,7 @@
 # Deploy the server
 
 ```mermaid
-flowchart LR
+flowchart TD
     Client[Application services] --> Proxy[TLS proxy or load balancer]
     Admin[Operator tools] --> Proxy
     Provider[Payment providers] -->|Webhooks| Proxy

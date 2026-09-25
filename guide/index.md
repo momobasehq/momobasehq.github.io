@@ -7,7 +7,7 @@ Use Momobase when you need one payment contract across several providers while r
 Every application sends its collections and disbursements to the same API. Momobase narrows that traffic into one payment contract, then fans each request out to the provider account that can settle it.
 
 ```mermaid
-flowchart LR
+flowchart TD
     Checkout[Checkout backend] --> MB
     Payroll[Payroll backend] --> MB
     Marketplace[Marketplace backend] --> MB
@@ -23,7 +23,7 @@ One process runs one Momobase instance with a set of provider adapters compiled 
 That process is either [Momobase Server](/server/), which is published ready to run, or a Go program of your own that [embeds the library](/library/). Both are the same runtime; they differ only in who compiles it and where configuration comes from.
 
 ```mermaid
-flowchart LR
+flowchart TD
     Client[Application backend] -->|Application API| HTTP[Momobase HTTP API]
     Operator[Operator or admin tool] -->|Admin API| HTTP
     Upstream[Payment provider] -->|Webhook| HTTP

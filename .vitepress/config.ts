@@ -10,6 +10,42 @@ const config = defineConfig({
 	// The repository README is for GitHub, not a page on the site.
 	srcExclude: ["README.md"],
 	lastUpdated: true,
+	mermaid: {
+		theme: "neutral",
+		layout: "elk",
+		fontFamily: "var(--vp-font-family-base)",
+		flowchart: { curve: "basis" },
+		themeCSS: `
+			.node rect, .node polygon, .node path, .node circle,
+			rect.actor, .note, .labelBox, .cluster rect {
+				fill: var(--vp-c-bg-soft);
+				stroke: var(--vp-c-brand-3);
+			}
+			.node rect, rect.actor, .note, .cluster rect {
+				rx: 8px;
+				ry: 8px;
+			}
+			.label, text, text.actor > tspan, .nodeLabel, .nodeLabel p,
+			.edgeLabel, .edgeLabel p, .messageText, .noteText, .loopText, .labelText {
+				color: var(--vp-c-text-1);
+				fill: var(--vp-c-text-1);
+			}
+			.edgeLabel, .edgeLabel p, .labelBkg {
+				background-color: var(--vp-c-bg);
+			}
+			.edgeLabel rect {
+				fill: var(--vp-c-bg);
+				opacity: 1;
+			}
+			.flowchart-link, .transition, .messageLine0, .messageLine1, .actor-line, .loopLine {
+				stroke: var(--vp-c-brand-1);
+			}
+			.marker, marker path, .state-start, .state-end {
+				fill: var(--vp-c-brand-1);
+				stroke: var(--vp-c-brand-1);
+			}
+		`,
+	},
 	vite: {
 		optimizeDeps: {
 			include: ["mermaid"],
