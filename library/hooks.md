@@ -1,71 +1,88 @@
-# Add payment hooks
+# Hooks
 
-Hooks add synchronous, in-process behavior to a Momobase instance compiled as a Go application. Use them to reject a new payment under application-specific policy or observe a committed transaction status change.
+Hooks run your Go code inside a Momobase instance. `OnPaymentRequest` can reject a new payment. `OnTransactionChanged` runs after every status change.
 
-Register hooks after `momobase.New()` and before `Run()` or `Serve()`:
+## What you need
+
+- A Go program that [embeds an instance](/library/). Hooks are not available in the prebuilt server.
+
+Bind hooks after `momobase.New` and before `Run`.
+
+## Reject a payment
+
+This rejects any payment above a limit, before it reaches a provider:
 
 ```go
-package extension
+// maxAmount is in currency minor units.
+const maxAmount = 100_000
 
-import (
-	"context"
-	"errors"
-	"log/slog"
-
-	"github.com/momobasehq/momobase"
-	"github.com/momobasehq/momobase/hooks"
-)
-
-func Register(instance *momobase.Instance, appID string, maxAmount int64) {
-	instance.OnPaymentRequest().Bind(func(_ context.Context, event hooks.PaymentRequestEvent) error {
-		if event.AppID == appID && event.Amount > maxAmount {
-			return errors.New("payment exceeds the application limit")
-		}
-		return nil
-	})
-
-	instance.OnTransactionChanged().Bind(func(ctx context.Context, event hooks.TransactionChangedEvent) error {
-		if event.AppID != appID {
-			return nil
-		}
-		instance.Logger().InfoContext(ctx, "transaction changed",
-			slog.String("transaction_id", event.TransactionID),
-			slog.String("status", event.Status),
-			slog.String("source", event.Source),
-		)
-		return nil
-	})
-}
+instance.OnPaymentRequest().Bind(func(_ context.Context, event hooks.PaymentRequestEvent) error {
+	if event.Amount > maxAmount {
+		return errors.New("payment exceeds the limit")
+	}
+	return nil
+})
 ```
 
-The complete example lives in [`examples/extension`](https://github.com/momobasehq/momobase/tree/main/_examples/extension).
+- It runs after validation and the idempotency check, before routing. Retries of an existing payment skip it.
+- Handlers run in the order you bind them. The first error rejects the payment with `PAYMENT_REJECTED`. Your error text is logged, not returned to the caller.
+- It runs while the caller waits, so keep it fast and honor the context.
+- The event has the payment's `AppID`, `ServiceType`, `PaymentMethod`, `Amount`, `Currency`, `Country`, `Reference`, `Account`, `Scheme`, `Description`, `PartyName`, and `PartyEmail`. Keep account and customer data out of your logs.
 
-Bind hooks before `Run` or `Serve` so the first request and worker iteration see the expected handlers.
+## React to a status change
 
-## Reject a payment request
+Momobase does not call your applications on its own. This hook posts every status change to your backend, signed so the backend can trust it:
 
-`OnPaymentRequest()` runs after normalization and idempotency replay detection, but before routing and persistence. Handlers run in registration order and the first error stops the chain.
+```go
+const (
+	notifyURL    = "https://backend.example.com/payments"
+	notifySecret = "a-long-random-secret"
+)
 
-An error rejects the request with the stable API code `PAYMENT_REJECTED`. Momobase logs the handler error but does not return its text to the caller.
+instance.OnTransactionChanged().Bind(func(ctx context.Context, event hooks.TransactionChangedEvent) error {
+	body, err := json.Marshal(map[string]any{
+		"transaction_id": event.TransactionID,
+		"reference":      event.Reference,
+		"status":         event.Status,
+	})
+	if err != nil {
+		return err
+	}
+	mac := hmac.New(sha256.New, []byte(notifySecret))
+	mac.Write(body)
 
-The event includes account and party data. Treat these fields as sensitive and do not copy them into logs or returned errors.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, notifyURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Signature", hex.EncodeToString(mac.Sum(nil)))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("notify: %s", resp.Status)
+	}
+	return nil
+})
+```
 
-The hook runs synchronously in the request path. Honor the supplied context, keep handlers bounded, and avoid slow network calls. A handler can read the event but must not treat changes to it as changes to the payment request.
+- It runs after the change is saved. Every handler runs; an error is logged and does not undo the change.
+- Delivery is best effort: a change sent while your backend is down is lost. If every change must arrive, write it to an outbox table and deliver from there with retries, or have your backend [read the transaction](/guide/payments#wait-for-the-final-status) to catch up.
+- `event.Source` says what caused the change: `request` (the first provider call), `webhook`, or `reconciliation` (Momobase asked the provider).
+- The event also has `AppID`, `PreviousStatus`, `ServiceType`, `PaymentMethod`, `Amount`, `Currency`, `Country`, `ProviderAccountID`, and `ProviderReference`. It never contains customer account data or provider credentials.
 
-## Observe a transaction change
+## Remove a hook
 
-`OnTransactionChanged()` runs after a status change commits. `Source` is `request`, `webhook`, or `reconciliation`. An observer error is logged, remaining observers still run, and the committed transaction is not rolled back.
+`Bind` returns a function that removes the handler:
 
-Use this hook for telemetry or best-effort side effects. It is not a durable message-delivery mechanism. Use a transactional outbox when another system must eventually receive every change.
+```go
+unbind := instance.OnTransactionChanged().Bind(handler)
+defer unbind()
+```
 
-`Source` identifies the path that committed the change:
-
-| Value            | Meaning                                         |
-| ---------------- | ----------------------------------------------- |
-| `request`        | The initial provider call produced the status   |
-| `webhook`        | A verified provider callback changed the status |
-| `reconciliation` | A provider status query changed the status      |
-
-The event excludes customer account data, provider credentials, raw responses, and webhook bodies.
-
-`Bind` returns an idempotent unbind function; see [the Go API reference](/library/go-api#hooks) for binding semantics and the complete event fields.
+Complete programs are in [`_examples`](https://github.com/momobasehq/momobase/tree/main/_examples).

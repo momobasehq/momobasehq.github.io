@@ -10,9 +10,6 @@ importers:
             "@scalar/api-reference":
                 specifier: ^1.67.0
                 version: 1.67.0(tailwindcss@4.3.3)(typescript@6.0.3)(zod@4.5.4)
-            pele:
-                specifier: ^1.6.0
-                version: 1.6.0
         devDependencies:
             "@eslint/js":
                 specifier: ^10.0.1
@@ -2820,13 +2817,6 @@ packages:
                 integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==,
             }
 
-    pele@1.6.0:
-        resolution:
-            {
-                integrity: sha512-VfAiVItsOGlGhvnBfphdT28VCG7mXMZxQNOwAGsCtxI2ztbUsT39MraEOYjsapLxVETkdUZscm0DdotYDQMLdw==,
-            }
-        engines: { node: ">=20" }
-
     perfect-debounce@1.0.0:
         resolution:
             {
@@ -5550,8 +5540,6 @@ snapshots:
     path-key@3.1.1: {}
 
     pathe@2.0.3: {}
-
-    pele@1.6.0: {}
 
     perfect-debounce@1.0.0: {}
 

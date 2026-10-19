@@ -1,4 +1,4 @@
-# Momobase Go package
+# Go package
 
 <div style="display:flex;gap:1rem;">
 
@@ -6,42 +6,121 @@
 
 [![Latest release](https://img.shields.io/github/v/release/momobasehq/momobase?label=release)](https://github.com/momobasehq/momobase/releases/latest)
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/momobasehq/momobase/blob/main/LICENSE.txt)
-
 </div>
 
+The Go package is the Momobase engine as a library. Embed it in your own Go program to add [payment hooks](/library/hooks), [your own provider adapter](/library/providers), or extra HTTP routes. It serves the same API as the server, but has no dashboard.
+
+## What you need
+
+- Go 1.25 or newer.
+
+## Create an instance
+
+1. Create a module and add Momobase:
+
+    ```sh
+    go mod init example.com/payments
+    go get github.com/momobasehq/momobase@latest
+    ```
+
+2. Write `main.go`:
+
+    ```go
+    package main
+
+    import (
+    	"context"
+    	"log"
+
+    	"github.com/momobasehq/momobase"
+    	"github.com/momobasehq/momobase/providers/dummy"
+    )
+
+    func main() {
+    	instance, err := momobase.New(
+    		momobase.WithProvider("dummy", dummy.New),
+    		momobase.WithAddr(":9090"),
+    	)
+    	if err != nil {
+    		log.Fatal(err)
+    	}
+    	defer func() { _ = instance.Close() }()
+
+    	// Fails after the first run because the administrator already exists.
+    	if err := instance.SeedAdmin(context.Background(), "admin@example.com", "local-password", "Admin"); err != nil {
+    		log.Print(err)
+    	}
+
+    	if err := instance.Run(); err != nil {
+    		log.Fatal(err)
+    	}
+    }
+    ```
+
+3. Run it:
+
+    ```sh
+    go run .
+    ```
+
+The API is now on `http://localhost:9090`. Without `WithConfig`, it uses the development defaults: SQLite in `./data` and placeholder secrets. See [Configuration](/guide/configuration).
+
+## Register providers
+
+Momobase registers no providers on its own. Add the [official providers](/guide/providers#included-providers) you need:
+
 ```sh
-go get github.com/momobasehq/momobase@latest
+go get github.com/momobasehq/providers/mtn
 ```
-
-The library is the payment engine itself: the HTTP API, the routing and reconciliation services, the database schema, and the provider contracts. [Momobase Server](/server/) is this package with a command-line interface, environment configuration, and a dashboard wrapped around it.
-
-Embed the library when you need adapters, hooks, or routes that a prebuilt binary cannot carry:
 
 ```go
 instance, err := momobase.New(
-	momobase.WithProvider("acme", acme.New),
+	momobase.WithProvider("mtn", mtn.New),
+	momobase.WithProvider("airtel", airtel.New),
 )
-if err != nil {
-	log.Fatal(err)
-}
-defer func() { _ = instance.Close() }()
-
-if err := instance.Run(); err != nil {
-	log.Fatal(err)
-}
 ```
 
-## What the host owns
+The code you register under is the provider code you choose when you create a provider account. An adapter only runs once an account uses it, so registering unused ones costs nothing.
 
-The library reads no environment variables and no configuration files. A `momobase.Config` value is the only source of settings, and where those values come from is your program's decision — flags, a config file, a secret manager, or the environment.
+## Options
 
-The host also owns the executable, the container image, the process manager, and the deployment topology. That is the trade: full control, and the packaging work that comes with it. If you want the packaging done for you, [run the server](/server/) instead — [compare the two](/guide/choose).
+| Option                        | Effect                                                   |
+| ----------------------------- | -------------------------------------------------------- |
+| `WithProvider(code, factory)` | Registers a provider adapter under `code`                |
+| `WithProviders(factories)`    | Registers several provider adapters                      |
+| `WithConfig(cfg)`             | Uses `cfg` instead of `DefaultConfig()`                  |
+| `WithConfigFunc(fn)`          | Edits the configuration; runs in the order you pass them |
+| `WithAddr(addr)`              | Sets the listen address                                  |
+| `WithLogger(logger)`          | Replaces the JSON logger with your own `*slog.Logger`    |
 
-## Next
+## Instance methods
 
-- [Embed an instance](/library/embedding) and control its lifecycle.
-- [Configure it](/library/configuration) field by field.
-- [Add hooks](/library/hooks) to reject or observe payments in process.
-- [Build a provider adapter](/library/providers) for a payment rail.
-- Look up the [Go API](/library/go-api) and the [provider API](/library/provider-api).
+| Method                                  | What it does                                                        |
+| --------------------------------------- | ------------------------------------------------------------------- |
+| `Run()`                                 | Serves until `SIGINT` or `SIGTERM`, then shuts down gracefully      |
+| `Serve(ctx)`                            | Serves until the context is cancelled                               |
+| `Close()`                               | Stops serving and closes the database. Always call it               |
+| `SeedAdmin(ctx, email, password, name)` | Creates an administrator with the `super_admin` role                |
+| `Migrate(ctx)`                          | Applies database migrations, when `Features.AutoMigrate` is `false` |
+| `App()`                                 | Returns the `*fiber.App`, to add routes                             |
+| `Logger()`                              | Returns the instance's `*slog.Logger`                               |
+
+An instance serves only once. Create a new one for each test or restart.
+
+## Add HTTP routes
+
+`App()` is a [Fiber v3](https://docs.gofiber.io/) app. Add routes before `Run`:
+
+```go
+instance.App().Get("/ready", func(c fiber.Ctx) error {
+	return c.SendStatus(fiber.StatusNoContent)
+})
+```
+
+Don't add routes under `/api/v1`, `/api/admin`, or `/webhooks`. Files in `mb_public` are served at `/` first; requests that match no file fall through to your routes.
+
+## Deploy
+
+Build and run your program like any Go service, and follow [Going to production](/guide/go-live), setting the `Config` fields instead of environment variables.
+
+The full API is on [pkg.go.dev](https://pkg.go.dev/github.com/momobasehq/momobase).

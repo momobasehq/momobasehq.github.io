@@ -3,45 +3,34 @@ layout: home
 
 hero:
     name: Momobase
-    text: Payment infrastructure you control
-    tagline: One self-hosted API for collections, disbursements, routing, provider health, and reconciliation.
+    text: Open-source payments backend in 1 file
+    tagline: One self-hosted API for collections and disbursements across mobile money, bank, and card providers.
     image:
         src: /logo.svg
         alt: Momobase Logo
     actions:
         - theme: brand
-          text: Run the server
-          link: /server/
-        - theme: brand
-          text: Embed the library
-          link: /library/
-        - theme: alt
-          text: Understand Momobase
+          text: Get started
           link: /guide/
+        - theme: alt
+          text: Quickstart
+          link: /guide/quickstart
 
 features:
     - icon: 📦
-      title: Momobase Server
-      details: A container image and release binaries for Linux, macOS, and Windows. The HTTP API, its provider adapters, and an administration dashboard in one process.
-      link: /server/install
-    - icon: 🐹
-      title: Go package
-      details: Embed the payment engine in your own program to compile in provider adapters, payment hooks, and extra routes.
-      link: /library/
-    - icon: 🟦
-      title: TypeScript SDK
-      details: A dependency-free client for both the application and administration APIs, with token refresh handled for you.
-      link: /sdk/
+      title: One binary
+      details: The API, the official provider adapters, and an administration dashboard. Configure it with environment variables.
+      link: /guide/
     - icon: 💳
       title: One payment API
-      details: Applications get one contract while provider adapters absorb the credentials, payloads, and status models behind it.
-      link: /guide/
-    - icon: ⚙️
-      title: Operational by default
-      details: Route by service, method, country, currency, priority, and health, then reconcile whatever is left unresolved.
-      link: /guide/routing
-    - icon: 🧭
-      title: Not sure which to install?
-      details: The server and the library run the same engine. Compare what each one gives you before committing to either.
-      link: /guide/choose
+      details: Your applications use one contract, with TypeScript and Python SDKs. Momobase handles each provider's credentials, payloads, and statuses.
+      link: /guide/payments
+    - icon: 🔀
+      title: Routing and fallback
+      details: Send each payment to a provider account by service, method, country, and currency, and fall back when one is down.
+      link: /guide/providers
+    - icon: 🐹
+      title: Extend with Go
+      details: Embed Momobase in your own Go program to add payment hooks, provider adapters, and HTTP routes.
+      link: /library/
 ---
