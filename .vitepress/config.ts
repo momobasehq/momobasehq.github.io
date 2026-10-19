@@ -57,180 +57,49 @@ export default defineConfig({
 	themeConfig: {
 		logo: { src: "/logo.svg", alt: "Momobase" },
 		nav: [
-			{ text: "Guide", link: "/guide/" },
-			{ text: "Tutorials", link: "/tutorials/" },
-			{ text: "Server", link: "/server/" },
-			{ text: "Library", link: "/library/" },
-			{ text: "SDKs", link: "/sdk/" },
+			{ text: "Docs", link: "/guide/" },
+			{ text: "Go package", link: "/library/" },
+			{ text: "SDKs", link: "/guide/payments" },
+			{ text: "API", link: "/api-reference" },
+		],
+
+		sidebar: [
 			{
-				text: "API",
+				text: "Getting started",
 				items: [
-					{ text: "HTTP conventions", link: "/api/conventions" },
+					{ text: "Introduction", link: "/guide/" },
+					{ text: "Quickstart", link: "/guide/quickstart" },
+					{ text: "Take payments", link: "/guide/payments" },
+					{ text: "Providers and routing", link: "/guide/providers" },
+					{ text: "Access control", link: "/guide/access" },
+				],
+			},
+			{
+				text: "Production",
+				items: [
+					{ text: "Going to production", link: "/guide/go-live" },
+					{ text: "Configuration", link: "/guide/configuration" },
+				],
+			},
+			{
+				text: "Extend with Go",
+				items: [
+					{ text: "Go package", link: "/library/" },
+					{ text: "Hooks", link: "/library/hooks" },
+					{
+						text: "Build a provider adapter",
+						link: "/library/providers",
+					},
+				],
+			},
+			{
+				text: "Reference",
+				items: [
+					{ text: "HTTP API", link: "/api/conventions" },
 					{ text: "OpenAPI explorer", link: "/api-reference" },
 				],
 			},
-			{
-				text: "About",
-				items: [
-					{ text: "About Momobase", link: "/about" },
-					{ text: "Contributing", link: "/contributing" },
-				],
-			},
 		],
-
-		sidebar: {
-			"/guide/": [
-				{
-					text: "Guide",
-					items: [
-						{ text: "What is Momobase?", link: "/guide/" },
-						{
-							text: "Choose your integration",
-							link: "/guide/choose",
-						},
-						{ text: "Quickstart", link: "/guide/quickstart" },
-						{ text: "Go live", link: "/guide/go-live" },
-					],
-				},
-				{
-					text: "How it works",
-					items: [
-						{
-							text: "Payment lifecycle",
-							link: "/guide/payment-lifecycle",
-						},
-						{ text: "Routing", link: "/guide/routing" },
-					],
-				},
-			],
-			"/tutorials/": [
-				{
-					text: "Tutorials",
-					items: [{ text: "Overview", link: "/tutorials/" }],
-				},
-				{
-					text: "Use Momobase",
-					items: [
-						{
-							text: "Set up payments in the dashboard",
-							link: "/tutorials/dashboard-setup",
-						},
-						{
-							text: "Add a backup provider",
-							link: "/tutorials/dashboard-fallback",
-						},
-						{
-							text: "Monitor payments and providers",
-							link: "/tutorials/dashboard-monitor",
-						},
-						{
-							text: "Give a teammate limited access",
-							link: "/tutorials/dashboard-team",
-						},
-					],
-				},
-				{
-					text: "Build with Momobase",
-					items: [
-						{
-							text: "Take payments from Node.js",
-							link: "/tutorials/sdk-checkout",
-						},
-						{
-							text: "Settle a payment with a webhook",
-							link: "/tutorials/webhook",
-						},
-						{
-							text: "Reject large payments",
-							link: "/tutorials/payment-limit",
-						},
-						{
-							text: "Notify your backend",
-							link: "/tutorials/notify-backend",
-						},
-					],
-				},
-			],
-			"/server/": [
-				{
-					text: "Momobase Server",
-					items: [
-						{ text: "Overview", link: "/server/" },
-						{ text: "Install", link: "/server/install" },
-						{
-							text: "Configuration",
-							link: "/server/configuration",
-						},
-						{
-							text: "Command-line interface",
-							link: "/server/cli",
-						},
-					],
-				},
-				{
-					text: "Run it",
-					items: [
-						{ text: "Deployment", link: "/server/deployment" },
-						{ text: "Operations", link: "/server/operations" },
-					],
-				},
-			],
-			"/library/": [
-				{
-					text: "Go package",
-					items: [
-						{ text: "Overview", link: "/library/" },
-						{
-							text: "Embed an instance",
-							link: "/library/embedding",
-						},
-						{
-							text: "Configuration",
-							link: "/library/configuration",
-						},
-					],
-				},
-				{
-					text: "Extend it",
-					items: [
-						{ text: "Add payment hooks", link: "/library/hooks" },
-						{
-							text: "Build a provider adapter",
-							link: "/library/providers",
-						},
-						{
-							text: "Official providers",
-							link: "/library/official-providers",
-						},
-					],
-				},
-				{
-					text: "Reference",
-					items: [
-						{ text: "Go API", link: "/library/go-api" },
-						{
-							text: "Provider API",
-							link: "/library/provider-api",
-						},
-					],
-				},
-			],
-			"/api/": [
-				{
-					text: "API",
-					items: [
-						{
-							text: "HTTP conventions",
-							link: "/api/conventions",
-						},
-						{
-							text: "OpenAPI explorer",
-							link: "/api-reference",
-						},
-					],
-				},
-			],
-		},
 
 		search: { provider: "local" },
 		editLink: {
@@ -246,9 +115,10 @@ export default defineConfig({
 			},
 		],
 		footer: {
-			message: "Released under the MIT License.",
+			message:
+				'Released under the MIT License. Inspired by <a href="https://pocketbase.io">PocketBase</a>.',
 			copyright:
-				'Created by <a href="https://github.com/momobasehq">Momobase HQ</a>.',
+				'Created by <a href="https://github.com/henryhale">Henry Hale</a> @ <a href="https://github.com/momobasehq">MomobaseHQ</a>',
 		},
 		outline: { level: [2, 3] },
 	},

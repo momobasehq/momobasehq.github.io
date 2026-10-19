@@ -1,35 +1,16 @@
-# Go live
+# Going to production
 
-Everything a Momobase instance needs before it handles real money. Each setting is listed twice: the environment variable for [Momobase Server](/server/configuration), and the `Config` field for the [Go package](/library/configuration).
+Everything a Momobase instance needs before it handles real money. Settings are shown as server environment variables. With the Go package, set the matching `Config` fields listed in [Configuration](/guide/configuration).
 
-## Checklist
+## 1. Turn on production mode
 
-1. [Set the environment to production](#_1-set-the-environment-to-production)
-2. [Replace the three secrets](#_2-replace-the-three-secrets), and back up the encryption key
-3. [Serve over HTTPS behind a proxy](#_3-serve-over-https-behind-a-proxy)
-4. [Choose a database](#_4-choose-a-database), and back it up
-5. [Add real provider accounts](#_5-add-real-provider-accounts)
-6. [Run workers on exactly one instance](#_6-run-workers-on-exactly-one-instance)
-7. [Migrate before rolling out replicas](#_7-migrate-before-rolling-out-replicas)
-8. [Monitor health](#_8-monitor-health)
+```ini
+APP_ENV=production
+```
 
-## 1. Set the environment to production
+Momobase then refuses to start if a secret is still a placeholder, the public URL is not `https://`, CORS allows `*`, or a remote PostgreSQL connection has TLS turned off.
 
-| Server    | Go package | Value        |
-| --------- | ---------- | ------------ |
-| `APP_ENV` | `App.Env`  | `production` |
-
-With `production` (or `staging`), Momobase refuses to start if a secret is still a placeholder, the public URL is not `https://`, CORS allows `*`, or a remote PostgreSQL connection has TLS disabled.
-
-## 2. Replace the three secrets
-
-| Server variable / Go field                                             | Rule                                                    |
-| ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| `ENCRYPTION_MASTER_KEY_BASE64`<br>`Security.EncryptionMasterKeyBase64` | Must decode to exactly 32 bytes                         |
-| `ADMIN_OAUTH_SECRET`<br>`Security.AdminOAuthSecret`                    | At least 32 characters                                  |
-| `APP_OAUTH_SECRET`<br>`Security.AppOAuthSecret`                        | At least 32 characters, different from the admin secret |
-
-Generate them:
+## 2. Replace the secrets
 
 ```sh
 openssl rand -base64 32   # ENCRYPTION_MASTER_KEY_BASE64
@@ -37,77 +18,96 @@ openssl rand -hex 32      # ADMIN_OAUTH_SECRET
 openssl rand -hex 32      # APP_OAUTH_SECRET
 ```
 
-Keep all three out of source control.
+Use a different value for each, and keep them out of source control.
 
 ::: danger Back up the encryption key with the database
-Provider credentials are stored encrypted with this key. Without it, the database can't decrypt them, and you must re-enter every provider account. The key cannot be rotated in place.
+Provider credentials are stored encrypted with `ENCRYPTION_MASTER_KEY_BASE64`. Without it, you must re-enter every provider account. You can't change the key on an existing database.
 :::
 
-## 3. Serve over HTTPS behind a proxy
+## 3. Serve over HTTPS
 
-Momobase does not terminate TLS. Put a TLS proxy or load balancer in front of it, then set:
+Momobase doesn't terminate TLS. Put a TLS proxy or load balancer in front of it, then set:
 
-| Server                 | Go package               | Value                                             |
-| ---------------------- | ------------------------ | ------------------------------------------------- |
-| `APP_PUBLIC_URL`       | `App.PublicURL`          | The `https://` URL callers use                    |
-| `TRUSTED_PROXY_CIDRS`  | `App.TrustedProxyCIDRs`  | Your proxy's addresses or CIDRs, and nothing else |
-| `CORS_ALLOWED_ORIGINS` | `App.CORSAllowedOrigins` | The browser origins that call the API, never `*`  |
+| Variable               | Value                                             |
+| ---------------------- | ------------------------------------------------- |
+| `APP_PUBLIC_URL`       | The `https://` URL callers use                    |
+| `TRUSTED_PROXY_CIDRS`  | Your proxy's addresses or CIDRs, and nothing else |
+| `CORS_ALLOWED_ORIGINS` | The browser origins that call the API             |
 
 If `TRUSTED_PROXY_CIDRS` is empty behind a proxy, every client shares one rate limit.
 
 ## 4. Choose a database
 
-| Instances     | Database                     |
-| ------------- | ---------------------------- |
-| One           | SQLite, PostgreSQL, or MySQL |
-| More than one | PostgreSQL or MySQL          |
+SQLite is fine for one instance. To run more than one, use PostgreSQL or MySQL. For example, with Docker Compose and PostgreSQL:
 
-| Server        | Go package    | Value                                             |
-| ------------- | ------------- | ------------------------------------------------- |
-| `DB_TYPE`     | `DB.Type`     | `sqlite`, `postgres`, or `mysql`                  |
-| `DB_HOST`     | `DB.Host`     | PostgreSQL or MySQL host                          |
-| `DB_PORT`     | `DB.Port`     | Defaults to `5432`. Set `3306` for MySQL          |
-| `DB_USER`     | `DB.User`     | Database user                                     |
-| `DB_PASSWORD` | `DB.Password` | Database password                                 |
-| `DB_NAME`     | `DB.Name`     | Database name                                     |
-| `DB_SSLMODE`  | `DB.SSLMode`  | `require` for PostgreSQL over a network           |
-| `DB_PATH`     | `DB.Path`     | SQLite file. In the container, keep it on `/data` |
+```yaml
+services:
+    momobase:
+        image: ghcr.io/momobasehq/server:latest
+        restart: unless-stopped
+        depends_on:
+            db:
+                condition: service_healthy
+        ports:
+            - "9090:9090"
+        env_file: .env
+        environment:
+            DB_TYPE: postgres
+            DB_HOST: db
+            DB_USER: momobase
+            DB_PASSWORD: ${POSTGRES_PASSWORD:?}
+            DB_NAME: momobase
 
-Back up the database together with the encryption key.
+    db:
+        image: postgres:18-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: momobase
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+            POSTGRES_DB: momobase
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U momobase -d momobase"]
+            interval: 5s
+            retries: 10
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
 
-## 5. Add real provider accounts
+volumes:
+    postgres-data:
+```
 
-For each provider:
+Put the settings from steps 1–3 and `POSTGRES_PASSWORD` in `.env` beside it, as plain values without quotes. For MySQL, set `DB_TYPE=mysql` and `DB_PORT=3306`. For PostgreSQL across a network, set `DB_SSLMODE=require`.
 
-1. Get API credentials from the provider. Start with its sandbox.
-2. Create a provider account with those credentials and a `webhook_secret`, then test and activate it. The provider's README lists its configuration keys: see [Official providers](/library/official-providers).
-3. Register `<APP_PUBLIC_URL>/webhooks/<provider-account-id>` as the provider's callback URL.
-4. Create a route for each service and payment method the account should handle.
-5. Make a small real payment and confirm it reaches a final status.
+## 5. Add real providers
 
-## 6. Run workers on exactly one instance
+Create a provider account for each provider, register its webhook URL, and add routes. See [Providers and routing](/guide/providers). Then make a small real payment and check that it reaches a final status.
 
-| Server            | Go package        | Value                                         |
-| ----------------- | ----------------- | --------------------------------------------- |
-| `WORKERS_ENABLED` | `Workers.Enabled` | `true` on one instance, `false` on all others |
+## 6. Run more than one instance
 
-Workers check provider health, reconcile unresolved payments, and clean up expired sessions. With one instance, leave the default `true`. If the instance running workers goes down, turn workers on for another one.
+Skip this with a single instance.
 
-## 7. Migrate before rolling out replicas
+- **Workers:** each instance with `WORKERS_ENABLED=true` runs its own health checks and payment follow-ups. Set it to `true` on exactly one instance and `false` on the rest.
+- **Migrations:** set `AUTO_MIGRATE=false` on every instance. For each upgrade, start one instance with `AUTO_MIGRATE=true`, wait for it to finish, then roll out the rest.
 
-| Server         | Go package             | Value                                                                        |
-| -------------- | ---------------------- | ---------------------------------------------------------------------------- |
-| `AUTO_MIGRATE` | `Features.AutoMigrate` | `true` for one instance; `false` for replicas, migrating once before rollout |
+Give each instance at least 10 seconds to shut down.
 
-Back up the database and encryption key before each upgrade. Migrations only go forward. See [Control migrations](/server/deployment#control-migrations).
+## 7. Monitor it
 
-## 8. Monitor health
+| Endpoint                      | Checks                         | Needs a token |
+| ----------------------------- | ------------------------------ | ------------- |
+| `/ping`                       | The process is alive           | No            |
+| `/healthz`                    | The HTTP server is answering   | No            |
+| `/api/admin/system/health`    | The database                   | Yes           |
+| `/api/admin/health/providers` | Each provider account's health | Yes           |
 
-| Endpoint                      | Checks                                | Needs a token |
-| ----------------------------- | ------------------------------------- | ------------- |
-| `/ping`                       | The process is alive                  | No            |
-| `/healthz`                    | The API is ready                      | No            |
-| `/api/admin/system/health`    | Database and runtime                  | Yes           |
-| `/api/admin/health/providers` | Each provider account and its circuit | Yes           |
+`/ping` and `/healthz` don't check the database or providers, so alert on those separately. The dashboard's **Operations** page shows provider health and background workers.
 
-Alert on provider health separately: `/ping` and `/healthz` don't call providers. [Operate the server](/server/operations) covers what to do when a check fails.
+If a payment stays `processing` or `unknown`, check that workers are running on one instance and that its provider account is active and healthy.
+
+## 8. Back up and upgrade
+
+Back up the database and the encryption key together, and before every upgrade. Migrations only go forward.
+
+- **Docker:** pull a newer image tag and recreate the container.
+- **Binary:** run `momobase self-update`, then restart.
+- **Go package:** update the module and rebuild.

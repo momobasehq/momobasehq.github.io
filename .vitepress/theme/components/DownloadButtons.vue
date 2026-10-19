@@ -106,6 +106,7 @@ onMounted(async () => {
 					</svg>
 					{{ build.arch }}
 				</a>
+				<span class="downloads-size">~11MB zip</span>
 			</div>
 		</div>
 
@@ -180,6 +181,11 @@ onMounted(async () => {
 	fill: none;
 	height: 16px;
 	width: 16px;
+}
+
+.downloads-size {
+	color: var(--vp-c-text-2);
+	font-size: 13px;
 }
 
 .downloads-note {

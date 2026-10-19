@@ -1,79 +1,88 @@
-# Add payment hooks
+# Hooks
 
-Hooks run your Go code inside a Momobase instance. Use `OnPaymentRequest` to reject a new payment and `OnTransactionChanged` to react to a committed status change.
+Hooks run your Go code inside a Momobase instance. `OnPaymentRequest` can reject a new payment. `OnTransactionChanged` runs after every status change.
 
 ## What you need
 
-- A Go program that [embeds an instance](/library/embedding). Hooks are not available in the prebuilt server.
+- A Go program that [embeds an instance](/library/). Hooks are not available in the prebuilt server.
 
-## Register hooks
+Bind hooks after `momobase.New` and before `Run`.
 
-Bind hooks after `momobase.New()` and before `Run()` or `Serve()`:
+## Reject a payment
+
+This rejects any payment above a limit, before it reaches a provider:
 
 ```go
-package extension
+// maxAmount is in currency minor units.
+const maxAmount = 100_000
 
-import (
-	"context"
-	"errors"
-	"log/slog"
-
-	"github.com/momobasehq/momobase"
-	"github.com/momobasehq/momobase/hooks"
-)
-
-func Register(instance *momobase.Instance, appID string, maxAmount int64) {
-	instance.OnPaymentRequest().Bind(func(_ context.Context, event hooks.PaymentRequestEvent) error {
-		if event.AppID == appID && event.Amount > maxAmount {
-			return errors.New("payment exceeds the application limit")
-		}
-		return nil
-	})
-
-	instance.OnTransactionChanged().Bind(func(ctx context.Context, event hooks.TransactionChangedEvent) error {
-		if event.AppID != appID {
-			return nil
-		}
-		instance.Logger().InfoContext(ctx, "transaction changed",
-			slog.String("transaction_id", event.TransactionID),
-			slog.String("status", event.Status),
-			slog.String("source", event.Source),
-		)
-		return nil
-	})
-}
+instance.OnPaymentRequest().Bind(func(_ context.Context, event hooks.PaymentRequestEvent) error {
+	if event.Amount > maxAmount {
+		return errors.New("payment exceeds the limit")
+	}
+	return nil
+})
 ```
 
-The complete program is in [`_examples/extension`](https://github.com/momobasehq/momobase/tree/main/_examples/extension).
+- It runs after validation and the idempotency check, before routing. Retries of an existing payment skip it.
+- Handlers run in the order you bind them. The first error rejects the payment with `PAYMENT_REJECTED`. Your error text is logged, not returned to the caller.
+- It runs while the caller waits, so keep it fast and honor the context.
+- The event has the payment's `AppID`, `ServiceType`, `PaymentMethod`, `Amount`, `Currency`, `Country`, `Reference`, `Account`, `Scheme`, `Description`, `PartyName`, and `PartyEmail`. Keep account and customer data out of your logs.
 
-## Reject a payment request
+## React to a status change
 
-`OnPaymentRequest` runs after validation and idempotency checks, before routing and before anything is stored.
+Momobase does not call your applications on its own. This hook posts every status change to your backend, signed so the backend can trust it:
 
-- Handlers run in registration order. The first error stops the chain.
-- The caller receives `PAYMENT_REJECTED`. Your error text is logged, not returned.
-- It runs in the request path: honor the context and avoid slow network calls.
-- Changing the event does not change the payment request.
-- The event contains account and customer data. Do not copy it into logs or errors.
+```go
+const (
+	notifyURL    = "https://backend.example.com/payments"
+	notifySecret = "a-long-random-secret"
+)
 
-## Observe a transaction change
+instance.OnTransactionChanged().Bind(func(ctx context.Context, event hooks.TransactionChangedEvent) error {
+	body, err := json.Marshal(map[string]any{
+		"transaction_id": event.TransactionID,
+		"reference":      event.Reference,
+		"status":         event.Status,
+	})
+	if err != nil {
+		return err
+	}
+	mac := hmac.New(sha256.New, []byte(notifySecret))
+	mac.Write(body)
 
-`OnTransactionChanged` runs after a status change commits.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, notifyURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Signature", hex.EncodeToString(mac.Sum(nil)))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("notify: %s", resp.Status)
+	}
+	return nil
+})
+```
 
-- Every handler runs, even if one returns an error. Errors are logged and the change is not rolled back.
-- Delivery is best effort. If another system must receive every change, use a transactional outbox instead.
-- The event excludes customer account data, provider credentials, raw responses, and webhook bodies.
+- It runs after the change is saved. Every handler runs; an error is logged and does not undo the change.
+- Delivery is best effort: a change sent while your backend is down is lost. If every change must arrive, write it to an outbox table and deliver from there with retries, or have your backend [read the transaction](/guide/payments#wait-for-the-final-status) to catch up.
+- `event.Source` says what caused the change: `request` (the first provider call), `webhook`, or `reconciliation` (Momobase asked the provider).
+- The event also has `AppID`, `PreviousStatus`, `ServiceType`, `PaymentMethod`, `Amount`, `Currency`, `Country`, `ProviderAccountID`, and `ProviderReference`. It never contains customer account data or provider credentials.
 
-`event.Source` tells you what caused the change:
+## Remove a hook
 
-| Value            | Meaning                                         |
-| ---------------- | ----------------------------------------------- |
-| `request`        | The initial provider call produced the status   |
-| `webhook`        | A verified provider callback changed the status |
-| `reconciliation` | A provider status query changed the status      |
+`Bind` returns a function that removes the handler:
 
-For all event fields and binding rules, see [the Go API reference](/library/go-api#hooks).
+```go
+unbind := instance.OnTransactionChanged().Bind(handler)
+defer unbind()
+```
 
-## Next
-
-- Try the tutorials [Reject large payments](/tutorials/payment-limit) and [Notify your backend](/tutorials/notify-backend).
+Complete programs are in [`_examples`](https://github.com/momobasehq/momobase/tree/main/_examples).

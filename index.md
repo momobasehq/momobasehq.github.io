@@ -10,38 +10,27 @@ hero:
         alt: Momobase Logo
     actions:
         - theme: brand
-          text: Quickstart
-          link: /guide/quickstart
-        - theme: alt
-          text: What is Momobase?
+          text: Get started
           link: /guide/
         - theme: alt
-          text: Choose your integration
-          link: /guide/choose
+          text: Quickstart
+          link: /guide/quickstart
 
 features:
     - icon: 📦
-      title: Run the server
-      details: One binary or container image with the API, the official provider adapters, and an administration dashboard. Configure it with environment variables.
-      link: /server/install
-    - icon: 🐹
-      title: Embed the Go package
-      details: Build Momobase into your own Go program to add provider adapters, payment hooks, and HTTP routes.
-      link: /library/
-    - icon: 🧩
-      title: Call it from your app
-      details: TypeScript and Python SDKs for the payment and administration APIs. They handle tokens for you.
-      link: /sdk/
+      title: One binary
+      details: The API, the official provider adapters, and an administration dashboard. Configure it with environment variables.
+      link: /guide/
     - icon: 💳
       title: One payment API
-      details: Your applications use one contract. Provider adapters handle each provider's credentials, payloads, and statuses.
-      link: /guide/
+      details: Your applications use one contract, with TypeScript and Python SDKs. Momobase handles each provider's credentials, payloads, and statuses.
+      link: /guide/payments
     - icon: 🔀
       title: Routing and fallback
-      details: Send each payment to a provider account by service, method, country, currency, priority, and health.
-      link: /guide/routing
-    - icon: ✅
-      title: Go live
-      details: One checklist of everything a production instance needs.
-      link: /guide/go-live
+      details: Send each payment to a provider account by service, method, country, and currency, and fall back when one is down.
+      link: /guide/providers
+    - icon: 🐹
+      title: Extend with Go
+      details: Embed Momobase in your own Go program to add payment hooks, provider adapters, and HTTP routes.
+      link: /library/
 ---

@@ -1,82 +1,52 @@
-# HTTP API conventions
+# HTTP API
 
-Rules that apply to every endpoint. For paths, request bodies, and responses, see the [OpenAPI explorer](/api-reference).
+Rules that apply to every endpoint. For each endpoint's path, body, and response, see the [OpenAPI explorer](/api-reference). The [SDKs](/guide/payments#install-an-sdk) handle all of this for you.
 
-## Route groups
-
-| Prefix or path                 | Audience                     | Authentication                    |
-| ------------------------------ | ---------------------------- | --------------------------------- |
-| `/ping`, `/healthz`            | Infrastructure probes        | None                              |
-| `/api/v1/token`                | Application authentication   | Client ID and secret form values  |
-| `/api/v1/*`                    | Application integrations     | Application bearer token          |
-| `/api/admin/token`             | Administrator authentication | Email and password form values    |
-| `/api/admin/*`                 | Operators and admin tools    | Administrator bearer token        |
-| `/webhooks/:providerAccountID` | Payment providers            | Webhook secrets and adapter proof |
-
-`/api/admin/login` is an alias for `/api/admin/token`.
+| Path         | For                                          | Sign in with                          |
+| ------------ | -------------------------------------------- | ------------------------------------- |
+| `/api/v1`    | Your applications: payments and transactions | An application credential             |
+| `/api/admin` | Administrators and tools                     | An administrator's email and password |
+| `/webhooks`  | Payment providers                            | The account's webhook secret          |
 
 ## Authentication
 
-Get a token by sending an `application/x-www-form-urlencoded` body to the token endpoint.
+Get a token with a form-encoded `POST`.
 
-Application token:
+::: code-group
 
-```text
-grant_type=client_credentials
-client_id=<application client ID>
-client_secret=<application client secret>
+```sh [Application]
+curl -X POST http://localhost:9090/api/v1/token \
+	--data-urlencode 'grant_type=client_credentials' \
+	--data-urlencode "client_id=$CLIENT_ID" \
+	--data-urlencode "client_secret=$CLIENT_SECRET"
 ```
 
-Administrator token:
-
-```text
-grant_type=password
-username=<administrator email>
-password=<administrator password>
+```sh [Administrator]
+curl -X POST http://localhost:9090/api/admin/token \
+	--data-urlencode 'grant_type=password' \
+	--data-urlencode 'username=admin@example.com' \
+	--data-urlencode "password=$ADMIN_PASSWORD"
 ```
 
-Refresh either token:
+:::
 
-```text
-grant_type=refresh_token
-refresh_token=<refresh token>
-```
-
-Send the access token on every request:
+The response is an OAuth token object with `access_token` and `refresh_token`. Send the access token on every request:
 
 ```http
 Authorization: Bearer <access token>
 ```
 
-Revoking a credential or session, or disabling an application or administrator, takes effect immediately, even for unexpired tokens.
+To refresh, `POST` `grant_type=refresh_token` and `refresh_token=<refresh token>` to `/api/v1/token/refresh` or `/api/admin/token/refresh`. What each token may do is set by [scopes and roles](/guide/access).
 
-## Authorization
+## Responses
 
-Application credential scopes:
-
-| Scope                  | Allows                                |
-| ---------------------- | ------------------------------------- |
-| `collections:create`   | Create collections                    |
-| `disbursements:create` | Create disbursements                  |
-| `transactions:read`    | Read the application's transactions   |
-| `*`                    | Satisfy every application scope check |
-
-`GET /api/v1/payment-methods` needs a valid application token but no scope.
-
-Administrators get permissions through roles, such as `system:read`, `transactions:read`, `providers:update`, or `routes:create`. `*` grants every permission. Get the full list from `GET /api/admin/permissions?audience=admin`.
-
-## Response envelopes
-
-Successful responses:
+Successful responses wrap the result in `data`:
 
 ```json
-{
-	"success": true,
-	"data": {}
-}
+{ "success": true, "data": {} }
 ```
 
-Errors:
+Errors carry a stable `code` and a human-readable `message`:
 
 ```json
 {
@@ -84,82 +54,49 @@ Errors:
 	"error": {
 		"code": "VALIDATION_ERROR",
 		"message": "currency must be exactly 3 characters"
-	},
-	"message": "currency must be exactly 3 characters"
+	}
 }
 ```
 
-Match on `error.code`. `error.message` is for people and may change.
-
-Token endpoints return the OAuth token object directly, without this envelope.
+Match on `error.code`; the message may change. Token responses are the exception: a successful token response is the token object itself, without the wrapper.
 
 ## Pagination
 
-List endpoints take `page` (default `1`) and `per_page` (default `20`, maximum `100`). The list is inside `data`:
+List endpoints take `page` (default `1`) and `per_page` (default `20`, maximum `100`), and return this inside `data`:
 
 ```json
-{
-	"page": 1,
-	"total": 42,
-	"items": [],
-	"count": 20
-}
+{ "page": 1, "total": 42, "count": 20, "items": [] }
 ```
 
-`count` is the number of items on this page. `total` is the number of items across all pages.
+`count` is the number of items on this page, `total` across all pages.
 
-## Idempotency
+## Payments
 
-Collections and disbursements require an `Idempotency-Key` header, unique per application.
+Send `Content-Type: application/json` on every JSON request, or you get `415`.
 
-- The same request with the same key returns the existing transaction.
-- A different request with a used key returns an error.
+Creating a collection or disbursement also needs an `Idempotency-Key` header. See [Retry safely](/guide/payments#retry-safely).
 
-Use one key per business operation, such as an order ID, and reuse it on retries.
+## Limits
 
-## Content type and request limits
-
-Send `Content-Type: application/json` on every JSON write. Anything else returns `415 UNSUPPORTED_MEDIA_TYPE`.
-
-| Request class      | Limit                                  |
-| ------------------ | -------------------------------------- |
-| General requests   | 1 MiB body                             |
-| Provider webhooks  | 256 KiB body                           |
-| HTTP read timeout  | 65 seconds                             |
-| HTTP write timeout | 65 seconds                             |
-| Idle connection    | 120 seconds                            |
-| Provider operation | 45 seconds inside the request lifetime |
+| Limit           | Value                                   |
+| --------------- | --------------------------------------- |
+| Request body    | 1 MiB, or 256 KiB for provider webhooks |
+| Request timeout | 65 seconds                              |
+| Provider call   | 45 seconds                              |
 
 ## Rate limits
 
-Per client address, per minute:
+Per client address, per minute, per instance:
 
-| Route class             | Requests per window |
-| ----------------------- | ------------------- |
-| Token endpoints         | 20                  |
-| Application endpoints   | 120                 |
-| Administrator endpoints | 120                 |
-| Webhook endpoint        | 300                 |
+| Endpoints               | Requests |
+| ----------------------- | -------- |
+| Token endpoints         | 20       |
+| Application endpoints   | 120      |
+| Administrator endpoints | 120      |
+| Webhooks                | 300      |
 
-Going over returns `429 RATE_LIMITED`. Each instance counts separately. Behind a proxy, set `TRUSTED_PROXY_CIDRS` or every client shares one limit.
+Going over returns `429 RATE_LIMITED`.
 
-## Request identifiers
+## Request IDs
 
-Send `X-Request-ID` (visible ASCII, up to 64 characters) to trace a request. Momobase returns it in the response and logs it. If you don't send one, or it is too long, Momobase generates one.
-
-## CORS and proxies
-
-Browsers can call the API only from origins in `CORS_ALLOWED_ORIGINS` (`App.CORSAllowedOrigins` in Go). Credentialed requests are not allowed. Allowed headers: `Authorization`, `Content-Type`, `X-Request-ID`, and `Idempotency-Key`.
-
-Forwarded client addresses are trusted only from proxies in `TRUSTED_PROXY_CIDRS` (`App.TrustedProxyCIDRs`). Leave it empty when no proxy is in front.
-
-## Webhook authentication
-
-Providers send webhooks to one provider account:
-
-```http
-POST /webhooks/<provider-account-id>
-X-Webhook-Secret: <account webhook secret>
-```
-
-Momobase checks `X-Webhook-Secret` against the provider account's `webhook_secret`. The provider adapter then verifies the provider's own signature, if it has one. Only verified events change a transaction.
+Every response has an `X-Request-ID` header, which also appears in the logs. Send your own `X-Request-ID` (up to 64 visible ASCII characters) to trace a request through your systems.

@@ -1,194 +1,67 @@
 # Quickstart
 
-Run Momobase locally and make a test payment through the built-in `dummy` provider. No money moves.
+Set up everything a payment needs in the dashboard, then send a test payment through the built-in `dummy` provider. No money moves.
 
 ## What you need
 
-- Docker
-- `curl` and `jq`
-- About 10 minutes
+- Momobase running, with an administrator. See [Introduction](/guide/).
+- About ten minutes.
 
-Using the Go package instead of the server? [Embed an instance](/library/embedding), create an administrator with `SeedAdmin`, then start at [step 3](#_3-get-an-administrator-token).
+## 1. Sign in
 
-## 1. Start the server
+Open `http://localhost:9090/_/` and sign in with the email and password you gave `seed-admin`.
 
-```sh
-docker run -d --name momobase -p 9090:9090 -v momobase-data:/data ghcr.io/momobasehq/server:latest
-```
+## 2. Create an application
 
-Check that it is up:
+An application is one system that creates payments, such as your checkout backend. Every payment it sends uses the application's currency.
 
-```sh
-curl http://localhost:9090/healthz
-```
+1. Select **Apps**, then **New app**.
+2. Enter the name `Checkout`. Leave **Currency** as `UGX` and **Environment** as **Sandbox**.
+3. Select **Create**, then **Manage** on its row.
 
-You should see `{"success":true,"data":{"ok":true}}`.
+## 3. Issue a credential
 
-## 2. Create an administrator
+Your backend signs in with a credential: a client ID and secret.
 
-```sh
-docker exec momobase momobase seed-admin --email admin@example.com --password local-password
-```
+1. On the **Credentials** tab, select **New credential**.
+2. Enter the name `Backend`, and check `collections:create` and `transactions:read`.
+3. Select **Create**.
 
-The dashboard is now at `http://localhost:9090/_/`. The rest of this page uses the API. To do steps 4–6 in the dashboard instead, follow [Set up payments in the dashboard](/tutorials/dashboard-setup).
+Copy the **Client ID** and **Client secret** now. The secret is never shown again; if you lose it, select **Rotate**.
 
-## 3. Get an administrator token
+## 4. Add a provider account
 
-```sh
-export MOMOBASE_URL=http://localhost:9090
+A provider account holds your credentials for one provider, in one country and currency. `dummy` simulates a provider.
 
-export ADMIN_TOKEN="$(
-	curl --fail --silent --show-error \
-		--data-urlencode 'grant_type=password' \
-		--data-urlencode 'username=admin@example.com' \
-		--data-urlencode 'password=local-password' \
-		"$MOMOBASE_URL/api/admin/token" |
-		jq -er '.access_token'
-)"
-```
+1. Select **Providers**, then **New account**.
+2. Set **Provider** to `dummy` and **Name** to `Simulator`. Leave **Country** as `UG` and **Currency** as `UGX`.
+3. Replace **Configuration (JSON)** with:
 
-## 4. Create an application and a credential
+    ```json
+    { "webhook_secret": "quickstart-webhook-secret" }
+    ```
 
-An application accepts payments in one currency.
+4. Select **Create**. On its row, select **Test**, then **Activate**.
 
-```sh
-export APP_ID="$(
-	curl --fail --silent --show-error \
-		-X POST \
-		-H "Authorization: Bearer $ADMIN_TOKEN" \
-		-H 'Content-Type: application/json' \
-		-d '{"name":"Quickstart checkout","environment":"sandbox","currency":"UGX"}' \
-		"$MOMOBASE_URL/api/admin/apps" |
-		jq -er '.data.id'
-)"
+## 5. Add a route
 
-export CREDENTIAL="$(
-	curl --fail --silent --show-error \
-		-X POST \
-		-H "Authorization: Bearer $ADMIN_TOKEN" \
-		-H 'Content-Type: application/json' \
-		-d '{"name":"Quickstart backend","scopes":"collections:create transactions:read"}' \
-		"$MOMOBASE_URL/api/admin/apps/$APP_ID/credentials"
-)"
+A route sends one kind of payment to a provider account.
 
-export CLIENT_ID="$(printf '%s' "$CREDENTIAL" | jq -er '.data.credential.client_id')"
-export CLIENT_SECRET="$(printf '%s' "$CREDENTIAL" | jq -er '.data.client_secret')"
-```
+1. Select **Routes**, then **New route**.
+2. Leave **Service** as **Collection**. Set **Provider account** to **Simulator (dummy)** and **Payment method** to `momo`.
+3. Select **Create**.
 
-The client secret is shown only once. In a real deployment, store it in a secret manager.
+## 6. Send a test payment
 
-## 5. Add a provider account
+1. Select **Apps**, **Manage** on **Checkout**, then the **Testing** tab.
+2. Paste the client ID and secret from step 3. On the **Token** tab, select **Get a token**.
+3. On the **Payments** tab, choose `momo`, keep the default account and amount, and select **Collect**.
 
-Create a `dummy` provider account for Uganda, then test and activate it. Every provider account needs a `webhook_secret`.
+The response shows `"status": "succeeded"`. Select **Transactions** to find the payment.
 
-```sh
-export PROVIDER_ID="$(
-	curl --fail --silent --show-error \
-		-X POST \
-		-H "Authorization: Bearer $ADMIN_TOKEN" \
-		-H 'Content-Type: application/json' \
-		-d '{
-			"provider_code":"dummy",
-			"name":"Quickstart simulator",
-			"environment":"sandbox",
-			"country":"UG",
-			"currency":"UGX",
-			"config":{"webhook_secret":"quickstart-webhook-secret"}
-		}' \
-		"$MOMOBASE_URL/api/admin/providers/accounts" |
-		jq -er '.data.id'
-)"
-
-curl --fail --silent --show-error \
-	-X POST \
-	-H "Authorization: Bearer $ADMIN_TOKEN" \
-	"$MOMOBASE_URL/api/admin/providers/accounts/$PROVIDER_ID/test" |
-	jq
-
-curl --fail --silent --show-error \
-	-X PATCH \
-	-H "Authorization: Bearer $ADMIN_TOKEN" \
-	"$MOMOBASE_URL/api/admin/providers/accounts/$PROVIDER_ID/activate" |
-	jq
-```
-
-## 6. Add a route
-
-A route sends one kind of payment to a provider account. This one sends mobile money (`momo`) collections to the account from step 5.
-
-```sh
-curl --fail --silent --show-error \
-	-X POST \
-	-H "Authorization: Bearer $ADMIN_TOKEN" \
-	-H 'Content-Type: application/json' \
-	-d "{
-		\"service_type\":\"collection\",
-		\"payment_method\":\"momo\",
-		\"provider_account_id\":\"$PROVIDER_ID\",
-		\"priority\":100,
-		\"active\":true
-	}" \
-	"$MOMOBASE_URL/api/admin/routes" |
-	jq
-```
-
-## 7. Make a payment
-
-Get an application token with the credential from step 4:
-
-```sh
-export APP_TOKEN="$(
-	curl --fail --silent --show-error \
-		--data-urlencode 'grant_type=client_credentials' \
-		--data-urlencode "client_id=$CLIENT_ID" \
-		--data-urlencode "client_secret=$CLIENT_SECRET" \
-		"$MOMOBASE_URL/api/v1/token" |
-		jq -er '.access_token'
-)"
-```
-
-Create a collection. Every payment needs an `Idempotency-Key` header.
-
-```sh
-export PAYMENT="$(
-	curl --fail --silent --show-error \
-		-X POST \
-		-H "Authorization: Bearer $APP_TOKEN" \
-		-H 'Content-Type: application/json' \
-		-H 'Idempotency-Key: quickstart-order-1' \
-		-d '{
-			"payment_method":"momo",
-			"account":"256770000000",
-			"amount":50000,
-			"currency":"UGX",
-			"country":"UG",
-			"reference":"QUICKSTART-ORDER-1",
-			"description":"First Momobase payment",
-			"customer":{"name":"Ada Lovelace","email":"ada@example.com"}
-		}' \
-		"$MOMOBASE_URL/api/v1/collections"
-)"
-
-printf '%s' "$PAYMENT" | jq
-export TRANSACTION_ID="$(printf '%s' "$PAYMENT" | jq -er '.data.transaction_id')"
-```
-
-`.data.status` is `succeeded`, because the `dummy` provider succeeds immediately by default.
-
-## 8. Read the transaction
-
-```sh
-curl --fail --silent --show-error \
-	-H "Authorization: Bearer $APP_TOKEN" \
-	"$MOMOBASE_URL/api/v1/transactions/$TRANSACTION_ID" |
-	jq
-```
-
-You now have an administrator, an application with a credential, a provider account, a route, and a completed transaction.
+Every dashboard action is also an admin API endpoint. To script this setup, see the [OpenAPI explorer](/api-reference) or use `MomobaseAdminClient` from an [SDK](/guide/payments#install-an-sdk).
 
 ## Next
 
-- Call Momobase from your code with an [SDK](/sdk/).
-- Work through the [tutorials](/tutorials/): the dashboard, webhooks, and hooks.
-- Add a real provider account: the server includes [official providers](/server/#included-providers) for MTN, Airtel, Yo! Payments, MarzPay, and Flutterwave.
-- Before handling real money, complete the [Go live](/guide/go-live) checklist.
+- [Take payments](/guide/payments) from your backend with the credential from step 3.
+- [Add a real provider](/guide/providers).

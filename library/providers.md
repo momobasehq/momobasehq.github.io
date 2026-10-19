@@ -1,59 +1,50 @@
 # Build a provider adapter
 
-A provider adapter connects Momobase to one upstream payment API. Check the [official providers](/library/official-providers) first; the one you need may already exist.
+A provider adapter connects Momobase to one payment provider's API. Check the [included providers](/guide/providers#included-providers) first; the one you need may already exist.
 
 ## What you need
 
-- A Go program that [embeds an instance](/library/embedding). The prebuilt server runs only the adapters compiled into it.
+- A Go program that [embeds an instance](/library/). The prebuilt server runs only the adapters built into it.
 - The provider's API documentation and sandbox credentials.
-- The package `github.com/momobasehq/momobase/providers`.
 
 Start from the complete [`_examples/customprovider`](https://github.com/momobasehq/momobase/tree/main/_examples/customprovider) adapter.
 
-## Implement the minimum contract
+## Implement the contract
 
-Every adapter implements `PaymentProvider`:
+Every adapter implements `providers.PaymentProvider`:
 
 ```go
+import "github.com/momobasehq/momobase/providers"
+
 type PaymentProvider interface {
 	Capabilities() []Capability
 	Init(context.Context, ProviderConfig) error
 }
 ```
 
-- `Init` validates one provider account's configuration. It can run again when the account changes, so replace old state instead of merging. Read values with `providers.ConfigString`, `ConfigBool`, and `ConfigInt`.
-- `Capabilities` returns the service and payment-method pairs the account supports. Routes can be created only for these pairs. Duplicate or unsupported capabilities stop the adapter from loading.
-- Momobase creates a separate adapter value per provider account, and again when it tests or reloads one. Calls can arrive concurrently, so protect mutable state.
+- `Init` receives one provider account's configuration, a `map[string]any`, plus its `environment`. Return an error when a setting is missing or invalid. Read values with `providers.ConfigString`, `ConfigBool`, and `ConfigInt`.
+- `Capabilities` returns the service and payment method pairs the account supports, such as `{ServiceCollection, PaymentMethodMomo}`. Routes can only use these.
+- Momobase creates one adapter value per provider account and may call it concurrently, so protect any shared state.
 
-## Implement payment operations
+Then implement the operations your capabilities need:
 
-Required:
+| Interface            | Method                                                                                     | Needed                                |
+| -------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `Collector`          | `Collect(context.Context, PaymentRequest) (*ProviderPaymentResponse, error)`               | For any collection capability         |
+| `Disburser`          | `Disburse(context.Context, PaymentRequest) (*ProviderPaymentResponse, error)`              | For any disbursement capability       |
+| `TransactionQuerier` | `QueryTransaction(context.Context, string, string) (*ProviderTransactionStatus, error)`    | Always: Momobase uses it to follow up |
+| `HealthChecker`      | `HealthCheck(context.Context) error`                                                       | Recommended. Also runs at start-up    |
+| `WebhookVerifier`    | `VerifyWebhook(context.Context, []byte, map[string]string) (*ProviderWebhookEvent, error)` | When the provider sends callbacks     |
+| `RequestValidator`   | `ValidateRequest(context.Context, *PaymentRequest) error`                                  | When accounts need a set format       |
+| `BalanceQuerier`     | `QueryBalance(context.Context, string) (*ProviderBalance, error)`                          | When the provider reports balances    |
 
-| Interface            | When                                                    |
-| -------------------- | ------------------------------------------------------- |
-| `Collector`          | You declare any collection capability                   |
-| `Disburser`          | You declare any disbursement capability                 |
-| `TransactionQuerier` | You declare any payment capability (for reconciliation) |
+- Amounts are integers in the currency's minor unit.
+- Return a status constant: `TxPending`, `TxProcessing`, `TxUnknown`, `TxSucceeded`, `TxFailed`, `TxCancelled`, or `TxExpired`. `providers.PaymentStatus` maps common provider spellings; map provider-specific codes yourself.
+- Every call has a 45-second deadline. Honor context cancellation and set timeouts on your HTTP client.
 
-Optional, in order of usefulness:
+## Validate accounts
 
-| Interface          | Add it when                                    |
-| ------------------ | ---------------------------------------------- |
-| `HealthChecker`    | Always, so health checks can see the upstream  |
-| `WebhookVerifier`  | The provider sends callbacks                   |
-| `RequestValidator` | The provider expects a specific account format |
-| `BalanceQuerier`   | The provider reports balances                  |
-
-Signatures are in the [provider API reference](/library/provider-api#operation-interfaces).
-
-- Return the `providers` status constants, such as `TxPending`, `TxSucceeded`, or `TxFailed`.
-- Amounts are integers in currency minor units.
-- Calls have a 45-second deadline. Honor context cancellation and set your HTTP client's transport limits.
-- Use the helpers `providers.DoJSON`, `ParseAmountToMinor`, `FormatAmountMinor`, `PaymentStatus`, `RandomRef`, and `Redact` for common work.
-
-## Validate provider-specific accounts
-
-Momobase treats `PaymentRequest.Account` as an opaque string. Implement `RequestValidator` when the provider needs a phone number, bank account, card token, wallet address, or similar in a specific format:
+Momobase treats the payment's `Account` as an opaque string. When the provider needs a specific format, such as a phone number with a country code, normalize it in `ValidateRequest`:
 
 ```go
 func (p *Provider) ValidateRequest(_ context.Context, req *providers.PaymentRequest) error {
@@ -66,17 +57,15 @@ func (p *Provider) ValidateRequest(_ context.Context, req *providers.PaymentRequ
 }
 ```
 
-It runs after route selection and before the transaction is stored. It may change only `Account` and `Scheme`.
+It may change only `Account` and `Scheme`.
 
 ## Verify webhooks
 
-`VerifyWebhook` must check the provider's signature (or equivalent proof) against the raw body and headers before trusting any value. Momobase checks the account's `X-Webhook-Secret` first, but that does not replace the provider's signature check. See [webhook authentication](/api/conventions#webhook-authentication).
+`VerifyWebhook` gets the raw body and headers. Check the provider's signature, or equivalent proof, before trusting any value. Momobase checks the account's `X-Webhook-Secret` first, but that doesn't replace the provider's own check.
 
-Return a `ProviderWebhookEvent` with the provider reference and status. Include amount, currency, country, account, and external reference when the callback has them; Momobase checks them against the transaction. Never log credentials or unredacted payment data.
+Return a `ProviderWebhookEvent` with the `ProviderReference`, `Status`, and event type. Include the amount, currency, country, account, and external reference when the callback has them: Momobase rejects the webhook if they don't match the payment.
 
-## Register the adapter
-
-A factory receives a provider-scoped logger and returns a new adapter:
+## Register it
 
 ```go
 instance, err := momobase.New(
@@ -84,13 +73,13 @@ instance, err := momobase.New(
 )
 ```
 
-Then, as an administrator: create a provider account with `provider_code` `acme_pay`, test it, activate it, and add routes for its capabilities. The account's `environment` is always passed to `Init`, overriding any `environment` key in its configuration.
+A factory takes a `*slog.Logger` and returns a new adapter on every call. Then create a provider account with provider code `acme_pay`, test it, activate it, and add routes.
 
 ## Test before moving money
 
-1. Unit-test configuration, account normalization, status mapping, and webhook signatures.
-2. Test timeouts and cancellation against a fake upstream.
-3. Run the tests with Go's race detector (`go test -race`).
-4. Create and test a sandbox provider account through the Admin API.
-5. Exercise collections, disbursements, repeated idempotency keys, duplicate webhooks, a webhook that arrives before the provider result, and reconciliation.
-6. Confirm that errors and stored raw payloads contain no credentials or customer data.
+1. Unit-test configuration, account formats, status mapping, and webhook signatures.
+2. Test timeouts and cancellation against a fake provider, with `go test -race`.
+3. In the provider's sandbox, try collections, disbursements, retries with the same idempotency key, duplicate webhooks, and a payment settled by follow-up.
+4. Check that errors and logs contain no credentials or customer data. `providers.Redact` strips likely secrets from error text.
+
+Every type and helper is on [pkg.go.dev](https://pkg.go.dev/github.com/momobasehq/momobase/providers).
