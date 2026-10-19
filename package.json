@@ -14,15 +14,13 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
-		"@mermaid-js/layout-elk": "^0.2.3",
 		"eslint": "^10.9.1",
-		"mermaid": "^11.17.2",
 		"prettier": "^3.9.6",
 		"typescript-eslint": "^8.69.0",
-		"vitepress": "^1.6.4",
-		"vitepress-plugin-mermaid": "^2.0.17"
+		"vitepress": "^1.6.4"
 	},
 	"dependencies": {
-		"@scalar/api-reference": "^1.67.0"
+		"@scalar/api-reference": "^1.67.0",
+		"pele": "^1.6.0"
 	}
 }
