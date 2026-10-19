@@ -7,13 +7,19 @@ Use Momobase when you need one payment contract across several providers while r
 Every application sends its collections and disbursements to the same API. Momobase narrows that traffic into one payment contract, then fans each request out to the provider account that can settle it.
 
 ```mermaid
-flowchart TD
-    Checkout[Checkout backend] --> MB
-    Payroll[Payroll backend] --> MB
-    Marketplace[Marketplace backend] --> MB
-    MB[Momobase, one payment contract] --> MobileMoney[Mobile money provider]
-    MB --> Bank[Bank provider]
-    MB --> Card[Card provider]
+flowchart TB
+    subgraph apps[Your applications]
+        Checkout[Checkout backend]
+        Payroll[Payroll backend]
+        Marketplace[Marketplace backend]
+    end
+    subgraph providers[Payment providers]
+        MobileMoney[Mobile money]
+        Bank[Bank transfer]
+        Card[Card]
+    end
+    apps -->|One payment API| MB[Momobase]
+    MB -->|One provider account per request| providers
 ```
 
 ## Runtime model
@@ -23,20 +29,20 @@ One process runs one Momobase instance with a set of provider adapters compiled 
 That process is either [Momobase Server](/server/), which is published ready to run, or a Go program of your own that [embeds the library](/library/). Both are the same runtime; they differ only in who compiles it and where configuration comes from.
 
 ```mermaid
-flowchart TD
-    Client[Application backend] -->|Application API| HTTP[Momobase HTTP API]
-    Operator[Operator or admin tool] -->|Admin API| HTTP
-    Upstream[Payment provider] -->|Webhook| HTTP
-    Host[Server or your Go program] -->|Constructs and configures| Instance[Momobase instance]
-    HTTP --> Services[Identity and payment services]
-    Services --> Routing[Routing engine]
-    Routing --> Runtime[Provider runtimes]
-    Runtime -->|Provider API| Upstream
-    Services --> Database[(SQLite, PostgreSQL, or MySQL)]
-    Workers[Health, reconciliation, cleanup] --> Runtime
-    Workers --> Database
-    Instance --> HTTP
-    Instance --> Workers
+flowchart LR
+    App[Applications] -->|Application API| API
+    Ops[Operators] -->|Admin API| API
+    Provider[Providers] -->|Webhooks| API
+    subgraph instance[Momobase instance]
+        direction TB
+        API[HTTP API] --> Services[Payment services]
+        Services --> Routing[Routing engine]
+        Routing --> Runtimes[Provider runtimes]
+        Workers[Workers] --> Runtimes
+    end
+    Services --> DB[(Database)]
+    Workers --> DB
+    Runtimes -->|Provider API| Provider
 ```
 
 The main runtime parts are:

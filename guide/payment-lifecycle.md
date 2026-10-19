@@ -8,30 +8,32 @@ An authenticated application submits a collection or disbursement with an `Idemp
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant App as Application
-    participant API as Momobase API
-    participant Hook as Request hooks
-    participant Route as Routing engine
+    participant API as Momobase
+    participant Hooks
+    participant Router
     participant DB as Database
-    participant Provider as Provider adapter
-
-    App->>API: POST payment + Idempotency-Key
+    participant Provider
+    App->>API: POST payment, Idempotency-Key
     API->>API: Normalize and validate
-    API->>DB: Look up application and idempotency key
-    alt Existing identical request
-        DB-->>API: Existing transaction
-        API-->>App: Idempotent replay
+    API->>DB: Find idempotency key
+    alt Same request seen before
+        DB-->>API: Stored transaction
+        API-->>App: Replay stored result
     else New request
-        API->>Hook: OnPaymentRequest
-        Hook-->>API: Accept or reject
-        API->>Route: Select eligible provider account
-        Route-->>API: Route and loaded runtime
-        API->>Provider: ValidateRequest, when implemented
-        Provider-->>API: Validated account and scheme
+        API->>Hooks: OnPaymentRequest
+        Hooks-->>API: Accept or reject
+        API->>Router: Select provider account
+        Router-->>API: Route and runtime
+        opt Adapter validates requests
+            API->>Provider: ValidateRequest
+            Provider-->>API: Account and scheme
+        end
         API->>DB: Commit transaction and attempt
         API->>Provider: Collect or Disburse
         Provider-->>API: Result or error
-        API->>DB: Persist normalized status
+        API->>DB: Save normalized status
         API-->>App: Payment response
     end
 ```
@@ -69,27 +71,21 @@ All request, webhook, and reconciliation updates use the same legal transition g
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending
-    pending --> processing
-    pending --> unknown
-    pending --> succeeded
-    pending --> failed
-    pending --> cancelled
-    pending --> expired
-    processing --> unknown
-    processing --> succeeded
-    processing --> failed
-    processing --> cancelled
-    processing --> expired
-    unknown --> processing
-    unknown --> succeeded
-    unknown --> failed
-    unknown --> cancelled
-    unknown --> expired
-    succeeded --> [*]
-    failed --> [*]
-    cancelled --> [*]
-    expired --> [*]
+    direction LR
+    state "Non-terminal" as open {
+        [*] --> pending
+        pending --> processing
+        pending --> unknown
+        processing --> unknown
+        unknown --> processing
+    }
+    state "Terminal" as done {
+        succeeded
+        failed
+        cancelled
+        expired
+    }
+    open --> done : request, webhook, or reconciliation
 ```
 
 Applying the current state again is a no-op. `succeeded`, `failed`, `cancelled`, and `expired` are terminal and cannot transition further.

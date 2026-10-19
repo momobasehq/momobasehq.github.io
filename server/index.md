@@ -21,14 +21,20 @@ Momobase Server is the runnable distribution: the HTTP API, the provider adapter
 It is published as a container image and as signed archives for Linux, macOS, and Windows. Configuration comes from the environment rather than from code, so nothing here needs a Go toolchain.
 
 ```mermaid
-flowchart TD
-    Client[Application backends] --> Proxy[TLS proxy]
-    Operator[Operators] --> Proxy
-    Provider[Payment providers] -->|Webhooks| Proxy
-    Proxy --> Server[momobase serve]
-    Server --> Dashboard[Administration dashboard]
-    Server --> DB[(SQLite, PostgreSQL, or MySQL)]
-    Server -->|Payment and status APIs| Provider
+architecture-beta
+    service apps(server)[Application backends]
+    service ops(server)[Operators]
+    group host(cloud)[Your host]
+    service proxy(internet)[TLS proxy] in host
+    service server(server)[momobase serve] in host
+    service db(database)[Database] in host
+    service providers(internet)[Payment providers]
+    apps:R -[API]-> L:proxy
+    ops:B --> T:proxy
+    proxy:R --> L:server
+    server:R --> L:db
+    server:B -[Payment APIs]-> T:providers
+    providers:L -[Webhooks]-> B:proxy
 ```
 
 ## What it adds to the library

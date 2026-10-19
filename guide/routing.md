@@ -6,20 +6,19 @@ Routing connects a normalized payment request to one loaded provider account. It
 
 ```mermaid
 flowchart TD
-    Start[Collection or disbursement] --> Routes[Load active routes for service and method]
-    Routes --> Next{Next route exists?}
+    Request[Collection or disbursement] --> Load[Sort active routes by priority, then age]
+    Load --> Next{Another route?}
     Next -->|No| Unavailable[Return ROUTE_UNAVAILABLE]
-    Next -->|Yes| Account{Provider account active?}
-    Account -->|No| Next
-    Account -->|Yes| Locale{Country and currency match?}
-    Locale -->|No| Next
-    Locale -->|Yes| Runtime{Runtime loaded and capability declared?}
-    Runtime -->|No| Next
-    Runtime -->|Yes| Circuit{Circuit open?}
-    Circuit -->|Yes| Next
-    Circuit -->|No| Health{Health snapshot blocks routing?}
-    Health -->|Yes| Next
-    Health -->|No| Selected[Select provider account]
+    Next -->|Yes| Active
+    subgraph checks[Eligibility checks]
+        direction TB
+        Active[Provider account active] --> Locale[Country and currency match]
+        Locale --> Capable[Runtime declares the capability]
+        Capable --> Circuit[Circuit closed]
+        Circuit --> Healthy[Health snapshot allows routing]
+    end
+    checks -->|Any check fails| Next
+    Healthy --> Selected[Use its provider account]
 ```
 
 A route is eligible only when all of these conditions hold:
