@@ -3,7 +3,7 @@ layout: home
 
 hero:
     name: Momobase
-    text: Payment infrastructure you control
+    text: Open-source payments backend in 1 file
     tagline: One self-hosted API for collections and disbursements across mobile money, bank, and card providers.
     image:
         src: /logo.svg

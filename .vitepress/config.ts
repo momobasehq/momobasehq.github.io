@@ -1,5 +1,4 @@
 import { defineConfig } from "vitepress";
-import { render } from "pele";
 
 export default defineConfig({
 	lang: "en-US",
@@ -10,20 +9,6 @@ export default defineConfig({
 	// The repository README is for GitHub, not a page on the site.
 	srcExclude: ["README.md"],
 	lastUpdated: true,
-	markdown: {
-		// Render ```mermaid fences to static SVG at build time.
-		config(md) {
-			const fence = md.renderer.rules.fence!;
-			let id = 0;
-			md.renderer.rules.fence = (tokens, idx, ...rest) => {
-				const token = tokens[idx];
-				if (token.info.trim() !== "mermaid") {
-					return fence(tokens, idx, ...rest);
-				}
-				return render(token.content, { idPrefix: `pele-${id++}` }).svg;
-			};
-		},
-	},
 	head: [
 		["link", { rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
 		[

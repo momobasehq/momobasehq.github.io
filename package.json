@@ -20,7 +20,6 @@
 		"vitepress": "^1.6.4"
 	},
 	"dependencies": {
-		"@scalar/api-reference": "^1.67.0",
-		"pele": "^1.6.0"
+		"@scalar/api-reference": "^1.67.0"
 	}
 }
