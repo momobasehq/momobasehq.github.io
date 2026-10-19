@@ -48,3 +48,19 @@
 .vp-doc a {
 	background: var(--vp-c-warning-soft);
 }
+
+.pele {
+	--pele-bg: var(--vp-c-bg);
+	--pele-fg: var(--vp-c-text-1);
+	--pele-muted: var(--vp-c-text-2);
+	--pele-line: var(--vp-c-brand-1);
+	--pele-surface: var(--vp-c-bg-soft);
+	--pele-surface-alt: var(--vp-c-bg-alt);
+	--pele-border: var(--vp-c-brand-3);
+	--pele-accent: var(--vp-c-brand-1);
+	--pele-font: var(--vp-font-family-base);
+	--pele-font-mono: var(--vp-font-family-mono);
+	--pele-radius: 8px;
+	display: block;
+	margin: 16px auto;
+}

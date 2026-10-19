@@ -1,7 +1,7 @@
 import { defineConfig } from "vitepress";
-import { withMermaid } from "vitepress-plugin-mermaid";
+import { render } from "pele";
 
-const config = defineConfig({
+export default defineConfig({
 	lang: "en-US",
 	title: "Momobase",
 	description:
@@ -10,9 +10,18 @@ const config = defineConfig({
 	// The repository README is for GitHub, not a page on the site.
 	srcExclude: ["README.md"],
 	lastUpdated: true,
-	vite: {
-		optimizeDeps: {
-			include: ["mermaid"],
+	markdown: {
+		// Render ```mermaid fences to static SVG at build time.
+		config(md) {
+			const fence = md.renderer.rules.fence!;
+			let id = 0;
+			md.renderer.rules.fence = (tokens, idx, ...rest) => {
+				const token = tokens[idx];
+				if (token.info.trim() !== "mermaid") {
+					return fence(tokens, idx, ...rest);
+				}
+				return render(token.content, { idPrefix: `pele-${id++}` }).svg;
+			};
 		},
 	},
 	head: [
@@ -273,5 +282,3 @@ const config = defineConfig({
 		outline: { level: [2, 3] },
 	},
 });
-
-export default withMermaid(config);

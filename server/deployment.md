@@ -1,14 +1,36 @@
 # Deploy the server
 
 ```mermaid
-flowchart LR
-    Client[Application services] --> Proxy[TLS proxy or load balancer]
-    Admin[Operator tools] --> Proxy
-    Provider[Payment providers] -->|Webhooks| Proxy
-    Proxy --> Server[momobase serve]
-    Server --> DB[(PostgreSQL or MySQL)]
-    Server -->|Payment and status APIs| Provider
-    Server --> Logs[Structured logs and monitoring]
+architecture-beta
+    service apps(server)[Application services]
+    service lb(internet)[TLS proxy or load balancer]
+    service providers(internet)[Payment providers]
+    group replicas(cloud)[momobase serve replicas]
+    junction jt1 in replicas
+    junction jt2 in replicas
+    junction jt3 in replicas
+    service r1(server)[Workers on] in replicas
+    service r2(server)[Workers off] in replicas
+    service r3(server)[Workers off] in replicas
+    junction jb1 in replicas
+    junction jb2 in replicas
+    junction jb3 in replicas
+    service db(database)[PostgreSQL or MySQL]
+    apps:R --> L:lb
+    providers:L -[Webhooks]-> R:lb
+    r3{group}:T -[Payment APIs]-> B:providers
+    lb:B --> T:jt2
+    jt2:L -- R:jt1
+    jt2:R -- L:jt3
+    jt1:B --> T:r1
+    jt2:B --> T:r2
+    jt3:B --> T:r3
+    r1:B -- T:jb1
+    r2:B -- T:jb2
+    r3:B -- T:jb3
+    jb1:R -- L:jb2
+    jb3:L -- R:jb2
+    jb2:B --> T:db
 ```
 
 Set `APP_ENV=production` before anything else. It turns the [validation gates](/server/configuration#staging-and-production-validation) on, so a deployment that forgot a secret or left TLS off fails at start-up rather than at the first payment.
