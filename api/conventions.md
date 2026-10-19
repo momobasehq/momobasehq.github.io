@@ -1,6 +1,6 @@
 # HTTP API conventions
 
-The generated [endpoint reference](/api-reference) is authoritative for paths, request bodies, and response models. This page describes behavior shared across endpoints.
+Rules that apply to every endpoint. For paths, request bodies, and responses, see the [OpenAPI explorer](/api-reference).
 
 ## Route groups
 
@@ -17,9 +17,9 @@ The generated [endpoint reference](/api-reference) is authoritative for paths, r
 
 ## Authentication
 
-Token endpoints accept `application/x-www-form-urlencoded` bodies.
+Get a token by sending an `application/x-www-form-urlencoded` body to the token endpoint.
 
-Application token grant:
+Application token:
 
 ```text
 grant_type=client_credentials
@@ -27,7 +27,7 @@ client_id=<application client ID>
 client_secret=<application client secret>
 ```
 
-Administrator token grant:
+Administrator token:
 
 ```text
 grant_type=password
@@ -35,24 +35,24 @@ username=<administrator email>
 password=<administrator password>
 ```
 
-Refresh grant for either audience:
+Refresh either token:
 
 ```text
 grant_type=refresh_token
 refresh_token=<refresh token>
 ```
 
-Send access tokens as:
+Send the access token on every request:
 
 ```http
 Authorization: Bearer <access token>
 ```
 
-Momobase verifies the token and resolves its application credential or administrator from the database on every authenticated request. Revoked credentials, sessions, disabled applications, and inactive administrators therefore stop authorizing requests without waiting for access-token expiry.
+Revoking a credential or session, or disabling an application or administrator, takes effect immediately, even for unexpired tokens.
 
 ## Authorization
 
-Application credentials accept these scopes:
+Application credential scopes:
 
 | Scope                  | Allows                                |
 | ---------------------- | ------------------------------------- |
@@ -61,13 +61,13 @@ Application credentials accept these scopes:
 | `transactions:read`    | Read the application's transactions   |
 | `*`                    | Satisfy every application scope check |
 
-Payment-method discovery requires a valid application token but no additional scope.
+`GET /api/v1/payment-methods` needs a valid application token but no scope.
 
-Administrator roles grant resource permissions such as `system:read`, `transactions:read`, `providers:update`, or `routes:create`. Use `GET /api/admin/permissions?audience=admin` to retrieve the current catalogue instead of hard-coding it. The wildcard `*` satisfies every permission check.
+Administrators get permissions through roles, such as `system:read`, `transactions:read`, `providers:update`, or `routes:create`. `*` grants every permission. Get the full list from `GET /api/admin/permissions?audience=admin`.
 
 ## Response envelopes
 
-Most successful JSON endpoints return:
+Successful responses:
 
 ```json
 {
@@ -76,7 +76,7 @@ Most successful JSON endpoints return:
 }
 ```
 
-Failures return:
+Errors:
 
 ```json
 {
@@ -89,15 +89,13 @@ Failures return:
 }
 ```
 
-Treat `error.code` as the stable machine-readable value and `error.message` as diagnostic text.
+Match on `error.code`. `error.message` is for people and may change.
 
-OAuth token endpoints are the exception: they return the token object directly without the Momobase envelope.
+Token endpoints return the OAuth token object directly, without this envelope.
 
 ## Pagination
 
-List endpoints accept `page` and `per_page`. Both default to positive values when missing or invalid; `per_page` defaults to 20 and is capped at 100.
-
-Paginated data has this shape inside `data`:
+List endpoints take `page` (default `1`) and `per_page` (default `20`, maximum `100`). The list is inside `data`:
 
 ```json
 {
@@ -108,19 +106,20 @@ Paginated data has this shape inside `data`:
 }
 ```
 
-`count` is the number of items in the current page; `total` is the total matching row count.
+`count` is the number of items on this page. `total` is the number of items across all pages.
 
 ## Idempotency
 
-Collections and disbursements require an `Idempotency-Key` header. The key is scoped to the authenticated application.
+Collections and disbursements require an `Idempotency-Key` header, unique per application.
 
-An identical normalized request returns the existing transaction. Reusing the key with a different service or payload returns an error. The key should identify one business operation and remain stable across network retries.
+- The same request with the same key returns the existing transaction.
+- A different request with a used key returns an error.
 
-Verified webhook events are also deduplicated before they are applied.
+Use one key per business operation, such as an order ID, and reuse it on retries.
 
 ## Content type and request limits
 
-JSON write endpoints require a `Content-Type` beginning with `application/json`; otherwise they return `415 UNSUPPORTED_MEDIA_TYPE`.
+Send `Content-Type: application/json` on every JSON write. Anything else returns `415 UNSUPPORTED_MEDIA_TYPE`.
 
 | Request class      | Limit                                  |
 | ------------------ | -------------------------------------- |
@@ -133,7 +132,7 @@ JSON write endpoints require a `Content-Type` beginning with `application/json`;
 
 ## Rate limits
 
-Limits use a one-minute window and the client address resolved through trusted-proxy configuration:
+Per client address, per minute:
 
 | Route class             | Requests per window |
 | ----------------------- | ------------------- |
@@ -142,25 +141,25 @@ Limits use a one-minute window and the client address resolved through trusted-p
 | Administrator endpoints | 120                 |
 | Webhook endpoint        | 300                 |
 
-Exhausting a limit returns HTTP `429` with code `RATE_LIMITED`. Limits are maintained by each running process; a multi-replica deployment does not share one counter.
+Going over returns `429 RATE_LIMITED`. Each instance counts separately. Behind a proxy, set `TRUSTED_PROXY_CIDRS` or every client shares one limit.
 
 ## Request identifiers
 
-Clients may send `X-Request-ID` using visible ASCII and at most 64 characters. Momobase discards an oversized value and generates a replacement. The resolved identifier is returned in the response and recorded in structured request logs.
+Send `X-Request-ID` (visible ASCII, up to 64 characters) to trace a request. Momobase returns it in the response and logs it. If you don't send one, or it is too long, Momobase generates one.
 
 ## CORS and proxies
 
-Momobase allows only configured CORS origins and does not enable credentialed browser requests. Allowed request headers include `Authorization`, `Content-Type`, `X-Request-ID`, and `Idempotency-Key`.
+Browsers can call the API only from origins in `CORS_ALLOWED_ORIGINS` (`App.CORSAllowedOrigins` in Go). Credentialed requests are not allowed. Allowed headers: `Authorization`, `Content-Type`, `X-Request-ID`, and `Idempotency-Key`.
 
-Forwarded client addresses are trusted only from `App.TrustedProxyCIDRs`. Configure this list when a controlled reverse proxy fronts Momobase; otherwise leave it empty.
+Forwarded client addresses are trusted only from proxies in `TRUSTED_PROXY_CIDRS` (`App.TrustedProxyCIDRs`). Leave it empty when no proxy is in front.
 
 ## Webhook authentication
 
-Webhook requests target a specific provider account:
+Providers send webhooks to one provider account:
 
 ```http
 POST /webhooks/<provider-account-id>
 X-Webhook-Secret: <account webhook secret>
 ```
 
-The provider adapter may require additional headers for its own signature verification. Momobase gives the adapter the raw body and request headers, stores only verified normalized events, and checks any supplied transaction fields before applying a status change.
+Momobase checks `X-Webhook-Secret` against the provider account's `webhook_secret`. The provider adapter then verifies the provider's own signature, if it has one. Only verified events change a transaction.

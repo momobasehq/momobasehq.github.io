@@ -1,226 +1,240 @@
 # Install Momobase Server
 
-Every install path below produces the same thing: an API on `http://localhost:9090` and a dashboard on `http://localhost:9090/_/`. Pick whichever suits your platform, then [create your first payment](/guide/first-payment).
+Every method below gives you the API on `http://localhost:9090` and the dashboard on `http://localhost:9090/_/`.
 
-A fresh install starts on development placeholders and a local SQLite file. That is deliberate — it lets you exercise the whole system before holding any real credentials. Set the [three secrets](/server/configuration#secrets) before it is anything but a local trial.
+A fresh install uses placeholder secrets and a local SQLite file. That is fine on your own machine. Set the [three secrets](/server/configuration#secrets) before anyone else can reach it.
 
-## Download a release
+## What you need
 
-<DownloadButtons />
-
-Archives contain the `momobase` binary, the licence, and the README. Verify one against `SHA256SUMS` before running it:
-
-```sh
-sha256sum --check --ignore-missing SHA256SUMS
-```
-
-Then unpack it, create an administrator, and start serving:
-
-```sh
-unzip momobase_v0.1.0_linux_amd64.zip
-./momobase seed-admin --email you@example.com --password 'change me'
-./momobase serve
-```
-
-`seed-admin` runs once and fails if the address already exists. See [Command-line interface](/server/cli) for the rest.
+- **Docker** for the Docker method, or **Docker Compose v2** for the Compose method.
+- **Linux, macOS, or Windows** for the release binary.
+- **Go 1.25 or newer** only for `go install`.
+- An email address and password for the first administrator.
 
 ## Docker
 
-```sh
-docker run -d \
-	--name momobase \
-	-p 9090:9090 \
-	-v momobase-data:/data \
-	ghcr.io/momobasehq/server:latest
-```
+1. Start the container:
 
-The image stores its SQLite database in the `/data` volume and exposes `9090`. Seed the administrator in a second command:
+    ```sh
+    docker run -d \
+    	--name momobase \
+    	-p 9090:9090 \
+    	-v momobase-data:/data \
+    	ghcr.io/momobasehq/server:latest
+    ```
 
-```sh
-docker exec momobase momobase seed-admin \
-	--email you@example.com --password 'change me'
-```
+    The database lives in the `/data` volume. Without the volume, it is deleted with the container.
 
-Published tags are `latest`, the full version (`0.1.0`), and the rolling `0.1` and `0` prefixes. Images are built for `linux/amd64` and `linux/arm64`. Note that image tags carry no `v` prefix, while release archives do.
+2. Create the first administrator:
+
+    ```sh
+    docker exec momobase momobase seed-admin \
+    	--email you@example.com --password 'change me'
+    ```
+
+Image tags are `latest`, the full version (for example `0.4.1`), and the `0.4` and `0` prefixes. Tags have no `v` prefix. Images are built for `linux/amd64` and `linux/arm64`.
+
+To upgrade, pull a newer tag and recreate the container.
 
 ## Docker Compose
 
-The repository ships a PostgreSQL compose file. Clone it if that is the database you want:
+1. Create a `compose.yaml` for your database:
 
-```sh
-git clone https://github.com/momobasehq/server.git
-cd server
-cp .env.example .env
-```
+    ::: code-group
 
-Otherwise write your own. Only the database settings differ between the three — the image, the port, the secrets, and the `/data` volume are the same either way.
+    ```yaml [SQLite]
+    services:
+        momobase:
+            image: ghcr.io/momobasehq/server:latest
+            restart: unless-stopped
+            ports:
+                - "9090:9090"
+            environment:
+                APP_PUBLIC_URL: http://localhost:9090
+                CORS_ALLOWED_ORIGINS: http://localhost:9090
 
-::: code-group
+                DB_TYPE: sqlite
+                DB_PATH: /data/momobase.db
 
-```yaml [SQLite]
-services:
-    momobase:
-        image: ghcr.io/momobasehq/server:latest
-        restart: unless-stopped
-        ports:
-            - "9090:9090"
-        environment:
-            APP_PUBLIC_URL: http://localhost:9090
-            CORS_ALLOWED_ORIGINS: http://localhost:9090
+                ENCRYPTION_MASTER_KEY_BASE64: ${ENCRYPTION_MASTER_KEY_BASE64:?}
+                ADMIN_OAUTH_SECRET: ${ADMIN_OAUTH_SECRET:?}
+                APP_OAUTH_SECRET: ${APP_OAUTH_SECRET:?}
+            volumes:
+                - momobase-data:/data
 
-            DB_TYPE: sqlite
-            DB_PATH: /data/momobase.db
+    volumes:
+        momobase-data:
+    ```
 
-            ENCRYPTION_MASTER_KEY_BASE64: ${ENCRYPTION_MASTER_KEY_BASE64:?}
-            ADMIN_OAUTH_SECRET: ${ADMIN_OAUTH_SECRET:?}
-            APP_OAUTH_SECRET: ${APP_OAUTH_SECRET:?}
-        volumes:
-            - momobase-data:/data
+    ```yaml [PostgreSQL]
+    services:
+        momobase:
+            image: ghcr.io/momobasehq/server:latest
+            restart: unless-stopped
+            depends_on:
+                db:
+                    condition: service_healthy
+            ports:
+                - "9090:9090"
+            environment:
+                APP_PUBLIC_URL: http://localhost:9090
+                CORS_ALLOWED_ORIGINS: http://localhost:9090
 
-volumes:
-    momobase-data:
-```
+                DB_TYPE: postgres
+                DB_HOST: db
+                DB_PORT: "5432"
+                DB_USER: momobase
+                DB_PASSWORD: ${POSTGRES_PASSWORD:?}
+                DB_NAME: momobase
+                DB_SSLMODE: disable
 
-```yaml [PostgreSQL]
-services:
-    momobase:
-        image: ghcr.io/momobasehq/server:latest
-        restart: unless-stopped
-        depends_on:
-            db:
-                condition: service_healthy
-        ports:
-            - "9090:9090"
-        environment:
-            APP_PUBLIC_URL: http://localhost:9090
-            CORS_ALLOWED_ORIGINS: http://localhost:9090
+                ENCRYPTION_MASTER_KEY_BASE64: ${ENCRYPTION_MASTER_KEY_BASE64:?}
+                ADMIN_OAUTH_SECRET: ${ADMIN_OAUTH_SECRET:?}
+                APP_OAUTH_SECRET: ${APP_OAUTH_SECRET:?}
+            volumes:
+                - momobase-data:/data
 
-            DB_TYPE: postgres
-            DB_HOST: db
-            DB_PORT: "5432"
-            DB_USER: momobase
-            DB_PASSWORD: ${POSTGRES_PASSWORD:?}
-            DB_NAME: momobase
-            DB_SSLMODE: disable
+        db:
+            image: postgres:18-alpine
+            restart: unless-stopped
+            environment:
+                POSTGRES_USER: momobase
+                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+                POSTGRES_DB: momobase
+            healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U momobase -d momobase"]
+                interval: 5s
+                retries: 10
+                start_period: 10s
+            volumes:
+                - postgres-data:/var/lib/postgresql/data
 
-            ENCRYPTION_MASTER_KEY_BASE64: ${ENCRYPTION_MASTER_KEY_BASE64:?}
-            ADMIN_OAUTH_SECRET: ${ADMIN_OAUTH_SECRET:?}
-            APP_OAUTH_SECRET: ${APP_OAUTH_SECRET:?}
-        volumes:
-            - momobase-data:/data
+    volumes:
+        momobase-data:
+        postgres-data:
+    ```
 
-    db:
-        image: postgres:18-alpine
-        restart: unless-stopped
-        environment:
-            POSTGRES_USER: momobase
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
-            POSTGRES_DB: momobase
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U momobase -d momobase"]
-            interval: 5s
-            retries: 10
-            start_period: 10s
-        volumes:
-            - postgres-data:/var/lib/postgresql/data
+    ```yaml [MySQL]
+    services:
+        momobase:
+            image: ghcr.io/momobasehq/server:latest
+            restart: unless-stopped
+            depends_on:
+                db:
+                    condition: service_healthy
+            ports:
+                - "9090:9090"
+            environment:
+                APP_PUBLIC_URL: http://localhost:9090
+                CORS_ALLOWED_ORIGINS: http://localhost:9090
 
-volumes:
-    momobase-data:
-    postgres-data:
-```
+                DB_TYPE: mysql
+                DB_HOST: db
+                DB_PORT: "3306"
+                DB_USER: momobase
+                DB_PASSWORD: ${MYSQL_PASSWORD:?}
+                DB_NAME: momobase
 
-```yaml [MySQL]
-services:
-    momobase:
-        image: ghcr.io/momobasehq/server:latest
-        restart: unless-stopped
-        depends_on:
-            db:
-                condition: service_healthy
-        ports:
-            - "9090:9090"
-        environment:
-            APP_PUBLIC_URL: http://localhost:9090
-            CORS_ALLOWED_ORIGINS: http://localhost:9090
+                ENCRYPTION_MASTER_KEY_BASE64: ${ENCRYPTION_MASTER_KEY_BASE64:?}
+                ADMIN_OAUTH_SECRET: ${ADMIN_OAUTH_SECRET:?}
+                APP_OAUTH_SECRET: ${APP_OAUTH_SECRET:?}
+            volumes:
+                - momobase-data:/data
 
-            DB_TYPE: mysql
-            DB_HOST: db
-            DB_PORT: "3306"
-            DB_USER: momobase
-            DB_PASSWORD: ${MYSQL_PASSWORD:?}
-            DB_NAME: momobase
+        db:
+            image: mysql:8.4
+            restart: unless-stopped
+            environment:
+                MYSQL_USER: momobase
+                MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
+                MYSQL_DATABASE: momobase
+                MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+            healthcheck:
+                test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+                interval: 5s
+                retries: 10
+                start_period: 30s
+            volumes:
+                - mysql-data:/var/lib/mysql
 
-            ENCRYPTION_MASTER_KEY_BASE64: ${ENCRYPTION_MASTER_KEY_BASE64:?}
-            ADMIN_OAUTH_SECRET: ${ADMIN_OAUTH_SECRET:?}
-            APP_OAUTH_SECRET: ${APP_OAUTH_SECRET:?}
-        volumes:
-            - momobase-data:/data
+    volumes:
+        momobase-data:
+        mysql-data:
+    ```
 
-    db:
-        image: mysql:8.4
-        restart: unless-stopped
-        environment:
-            MYSQL_USER: momobase
-            MYSQL_PASSWORD: ${MYSQL_PASSWORD:?}
-            MYSQL_DATABASE: momobase
-            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
-        healthcheck:
-            test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
-            interval: 5s
-            retries: 10
-            start_period: 30s
-        volumes:
-            - mysql-data:/var/lib/mysql
+    :::
 
-volumes:
-    momobase-data:
-    mysql-data:
-```
+    The server repository also ships a PostgreSQL compose file and an `.env.example`:
 
-:::
+    ```sh
+    git clone https://github.com/momobasehq/server.git
+    cd server
+    cp .env.example .env
+    ```
 
-What differs between them:
+2. Create a `.env` file beside `compose.yaml` with finished values. Compose reads it as literal text, so do not use quotes or `$(...)`:
 
-| Variable       | SQLite              | PostgreSQL                                  | MySQL       |
-| -------------- | ------------------- | ------------------------------------------- | ----------- |
-| `DB_TYPE`      | `sqlite`            | `postgres`                                  | `mysql`     |
-| `DB_PATH`      | `/data/momobase.db` | —                                           | —           |
-| `DB_PORT`      | —                   | `5432`                                      | `3306`      |
-| `DB_SSLMODE`   | —                   | `disable` locally, `require` over a network | ignored     |
-| Second service | none                | `postgres:18-alpine`                        | `mysql:8.4` |
+    ```ini
+    ENCRYPTION_MASTER_KEY_BASE64=…
+    ADMIN_OAUTH_SECRET=…
+    APP_OAUTH_SECRET=…
+    POSTGRES_PASSWORD=…
+    ```
 
-`DB_PORT` defaults to `5432`, so MySQL will not connect until you set it. `DB_SSLMODE` is read only by the PostgreSQL driver — the MySQL DSN never sees it.
+    Generate the three secrets as shown in [Secrets](/server/configuration#secrets). For MySQL, set `MYSQL_PASSWORD` and `MYSQL_ROOT_PASSWORD` instead of `POSTGRES_PASSWORD`. A missing value stops the stack from starting.
 
-SQLite is fine for a single container and runs in WAL mode, but it has one writer: use PostgreSQL or MySQL the moment a second replica needs the same data. Whichever you pick, `/data` still has to be a volume — the container's working data lives there.
+3. Start the stack and create the first administrator:
 
-The `:?` guards fail the stack rather than start it with a missing secret. Compose reads a `.env` beside the compose file, and that file is literal text — no command substitution, no quoting — so it holds the finished values:
+    ```sh
+    docker compose up -d
+    docker compose run --rm momobase seed-admin \
+    	--email you@example.com --password 'change me'
+    ```
 
-```ini
-ENCRYPTION_MASTER_KEY_BASE64=…
-ADMIN_OAUTH_SECRET=…
-APP_OAUTH_SECRET=…
-POSTGRES_PASSWORD=…
-```
+Database settings by engine:
 
-Use `MYSQL_PASSWORD` and `MYSQL_ROOT_PASSWORD` instead if you chose MySQL. [Secrets](/server/configuration#secrets) covers how to generate the three, what each one signs or encrypts, and why the encryption key has to be backed up with the database.
+| Variable     | SQLite              | PostgreSQL                                  | MySQL    |
+| ------------ | ------------------- | ------------------------------------------- | -------- |
+| `DB_TYPE`    | `sqlite`            | `postgres`                                  | `mysql`  |
+| `DB_PATH`    | `/data/momobase.db` | —                                           | —        |
+| `DB_PORT`    | —                   | `5432`                                      | `3306`   |
+| `DB_SSLMODE` | —                   | `disable` locally, `require` over a network | not used |
 
-Then start it and seed the administrator:
+- Set `DB_PORT=3306` for MySQL. The default is `5432`.
+- Use PostgreSQL or MySQL if you will run more than one replica. SQLite allows one writer.
+- Keep the `/data` volume with every engine.
 
-```sh
-docker compose up -d
-docker compose run --rm momobase seed-admin \
-	--email you@example.com --password 'change me'
-```
+## Release binary
+
+1. Download the archive for your platform:
+
+       <DownloadButtons />
+
+2. Check it against `SHA256SUMS` from the same release:
+
+    ```sh
+    sha256sum --check --ignore-missing SHA256SUMS
+    ```
+
+3. Unpack it, create the first administrator, and start the server:
+
+    ```sh
+    unzip momobase_v0.4.1_linux_amd64.zip
+    ./momobase seed-admin --email you@example.com --password 'change me'
+    ./momobase serve
+    ```
+
+    Archives are named `momobase_<version>_<os>_<arch>.zip` and contain the `momobase` binary, the licence, and the README.
+
+To upgrade, run `./momobase self-update` and restart the server. See [self-update](/server/cli#self-update).
 
 ## Go install
-
-If you already have Go 1.25 or newer:
 
 ```sh
 go install github.com/momobasehq/server/cmd/momobase@latest
 ```
 
-This builds from source and omits the version stamp that release archives carry, so `momobase version` reports `dev`.
+Then run `momobase seed-admin` and `momobase serve` as above. A binary built this way reports its version as `dev` and cannot use `self-update`.
 
 ## Verify the install
 
@@ -229,15 +243,15 @@ curl --fail --silent http://localhost:9090/healthz
 ```
 
 ```json
-{ "ok": true }
+{ "success": true, "data": { "ok": true } }
 ```
 
-Then open `http://localhost:9090/_/` and sign in as the administrator you seeded.
+Open `http://localhost:9090/_/` and sign in as the administrator you created.
 
-`http://localhost:9090/` redirects there until you put a directory named `mb_public` beside the binary; its files are then served at the root. See [the public directory](/server/configuration#migrations-dashboard-and-the-public-directory).
+`http://localhost:9090/` redirects to the dashboard unless a `mb_public` directory exists beside the binary. See [the public directory](/server/configuration#migrations-dashboard-and-the-public-directory).
 
 ## Next
 
-- [Create your first payment](/guide/first-payment) against the running instance.
-- [Configure the server](/server/configuration) before exposing it to anything.
-- [Deploy it properly](/server/deployment) with TLS, a shared database, and deliberate migrations.
+- [Follow the Quickstart](/guide/quickstart).
+- [Configure the server](/server/configuration) before you expose it.
+- [Deploy it](/server/deployment) for production.

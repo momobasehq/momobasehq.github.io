@@ -1,12 +1,15 @@
 # Give a teammate limited access
 
-Every administrator holds one role, and a role is a set of permissions. In this tutorial you create a support role that can read payments and reissue credentials but change nothing else, and give it to a new teammate.
+Create a support role that can read payments and reissue credentials, and give it to a new administrator.
 
-This takes about five minutes and continues from [Set up payments in the dashboard](/tutorials/dashboard-setup).
+## What you need
+
+- The setup from [Set up payments in the dashboard](/tutorials/dashboard-setup).
+- About five minutes.
 
 ## 1. Review the built-in roles
 
-Select **Roles**. Three system roles exist and cannot be edited:
+Select **Roles**. Every administrator holds one role, and a role is a set of permissions. These system roles cannot be edited:
 
 | Role          | Grants                                                    |
 | ------------- | --------------------------------------------------------- |
@@ -19,7 +22,7 @@ The administrator you seeded holds `super_admin`.
 ## 2. Create a support role
 
 1. Select **New role**.
-2. Enter the name `support` and the description `Read transactions and reissue credentials`. A role's name cannot be changed later.
+2. Enter the name `support` and the description `Read transactions and reissue credentials`. You cannot rename a role later.
 3. Check these permissions:
     - `transactions:read`
     - `apps:read`
@@ -27,7 +30,7 @@ The administrator you seeded holds `super_admin`.
     - `credentials:update`
 4. Select **Create**.
 
-`credentials:update` allows rotating and revoking credentials, but not creating new ones.
+`credentials:update` allows rotating and revoking credentials, not creating them.
 
 ## 3. Add the teammate
 
@@ -37,22 +40,17 @@ The administrator you seeded holds `super_admin`.
 
 ## 4. Sign in as the teammate
 
-Open a private browser window, so your own session stays signed in, and sign in to `http://localhost:9090/_/` as `support@example.com`.
+Open a private browser window and sign in to `http://localhost:9090/_/` as `support@example.com`.
 
-### Checkpoint
-
-The sidebar shows only **Transactions** and **Apps**. The screens a role cannot read are hidden. Open **Tutorial checkout**: **Rotate** is available on the credential, while **New credential** and **Edit** are disabled, with a tooltip naming the permission each needs.
+The sidebar shows only **Transactions** and **Apps**. Open **Tutorial checkout**: **Rotate** is available on the credential, while **New credential** and **Edit** are disabled, with a tooltip naming the permission each needs.
 
 ## 5. Change the role
 
-Back in your own window, select **Change role** on the teammate's row and choose **Read only**. Their next request uses the new role; they stay signed in.
+In your own window, select **Change role** on the teammate's row and choose **Read only**. The change applies to their next request; they stay signed in.
 
-To remove access entirely, select **Deactivate**. **Set password** also signs them out of every session.
-
-## Recap
-
-You granted a teammate exactly what their job needs. Roles take effect on the next request, so you can tighten access without waiting for anyone to sign out.
+To remove access, select **Deactivate**. **Set password** also signs them out of every session.
 
 ## Next
 
-- Look up permission codes and the admin API in [Administration client](/sdk/admin-client#manage-access).
+- Manage administrators and roles from code with an [SDK](/sdk/).
+- Look up the Admin API in the [OpenAPI explorer](/api-reference).

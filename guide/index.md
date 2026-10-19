@@ -1,10 +1,6 @@
-# Understand Momobase
+# What is Momobase?
 
-Momobase is a self-hosted payment orchestration service. Applications send collections and disbursements to one API, and Momobase routes each request through an eligible provider account.
-
-Use Momobase when you need one payment contract across several providers while retaining control of credentials, routing, transaction records, and deployment. Momobase is not a payment provider, merchant of record, checkout interface, or order-management system.
-
-Every application sends its collections and disbursements to the same API. Momobase narrows that traffic into one payment contract, then fans each request out to the provider account that can settle it.
+Momobase is a self-hosted payment service. Your applications send collections (money in) and disbursements (money out) to one API. Momobase sends each payment to a payment provider you have configured, such as MTN MoMo or Airtel Money, and tracks it until it reaches a final status.
 
 ```mermaid
 flowchart TB
@@ -22,11 +18,19 @@ flowchart TB
     MB -->|One provider account per request| providers
 ```
 
-## Runtime model
+You run Momobase yourself and keep your own contract with each provider. Momobase is not a payment provider, a merchant of record, a checkout page, or an order system.
 
-One process runs one Momobase instance with a set of provider adapters compiled into it. The instance owns its HTTP API, payment services, provider runtimes, workers, hooks, and database connections.
+## How you run it
 
-That process is either [Momobase Server](/server/), which is published ready to run, or a Go program of your own that [embeds the library](/library/). Both are the same runtime; they differ only in who compiles it and where configuration comes from.
+| Piece                       | What it is                                                                  | Use it to                               |
+| --------------------------- | --------------------------------------------------------------------------- | --------------------------------------- |
+| [Momobase Server](/server/) | A ready-to-run binary and container image, with an administration dashboard | Run Momobase as a service               |
+| [Go package](/library/)     | The same engine as a Go library                                             | Build Momobase into your own Go program |
+| [SDKs](/sdk/)               | TypeScript and Python clients                                               | Call Momobase from your application     |
+
+Not sure which one? See [Choose your integration](/guide/choose). To try it now, follow the [Quickstart](/guide/quickstart).
+
+## What's inside an instance
 
 ```mermaid
 flowchart LR
@@ -45,47 +49,29 @@ flowchart LR
     Runtimes -->|Provider API| Provider
 ```
 
-The main runtime parts are:
+| Part              | Does                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| HTTP API          | Authenticates applications and administrators, validates requests, receives webhooks |
+| Payment services  | Enforce idempotency, pick a route, call the provider, save each status change        |
+| Provider runtimes | Hold the loaded provider adapters, their health, and their circuit breakers          |
+| Workers           | Check provider health, follow up on unresolved payments, delete expired sessions     |
+| Database          | SQLite, PostgreSQL, or MySQL                                                         |
 
-| Part              | Responsibility                                                                                                   |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
-| HTTP API          | Authenticates applications and administrators, validates requests, and exposes payment and operational endpoints |
-| Payment services  | Apply idempotency, select routes, call providers, and persist legal transaction transitions                      |
-| Provider runtimes | Hold initialized provider adapters, health state, and circuit-breaker state for active accounts                  |
-| Workers           | Check provider health, reconcile unresolved transactions, and remove expired sessions                            |
+## Key terms
 
-The host process owns startup, provider selection, deployment, and shutdown. Momobase owns everything the instance creates, and releases it on shutdown.
-
-## Core concepts
-
-- An **application** represents one API consumer and fixes the currency accepted for its payments.
-- An **application credential** grants selected application scopes and is exchanged for access and refresh tokens.
-- A **provider adapter** implements the Go interfaces needed to talk to one upstream payment system.
-- A **provider account** combines an adapter code with encrypted configuration, an environment, one country, one currency, and fee rules.
-- A **route** connects a service and payment method to one provider account at a priority.
-- A **transaction** is Momobase's normalized record of a collection or disbursement.
-- A **transaction attempt** records the provider call used to process a transaction.
-
-Read [Payment lifecycle](/guide/payment-lifecycle) for the request and recovery paths, and [Routing](/guide/routing) for route eligibility and fallback behavior.
-
-## Trust boundaries
-
-Application clients authenticate with client credentials and scopes. Administrators authenticate separately and receive permissions through roles. Provider configuration is encrypted before persistence and is never returned through the Admin API.
-
-Momobase validates its normalized payment contract. The selected provider adapter owns provider-specific validation for values such as phone numbers, bank accounts, card tokens, wallet addresses, and schemes.
-
-Webhook processing has two authentication layers: Momobase checks the provider account's `webhook_secret`, then the adapter verifies the provider's signature or equivalent proof using the raw body and headers.
-
-## Persistence and recovery
-
-Momobase stores applications, credentials, routing configuration, transactions, attempts, webhook deliveries, health snapshots, sessions, and audit records in SQLite, PostgreSQL, or MySQL.
-
-Provider network calls do not run inside database transactions. The transaction and its initial attempt are committed first; the provider result is persisted afterward. If the outcome is unresolved, reconciliation queries the provider with bounded backoff. Verified webhooks can also advance the same transaction.
-
-All status updates use the same transition rules, whether the source is the initial request, a webhook, or reconciliation. Duplicate payment requests and webhooks are handled idempotently.
+| Term                 | Meaning                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Application**      | One API consumer, such as your checkout backend. It accepts payments in one currency                               |
+| **Credential**       | A client ID and secret for an application, limited to the scopes you grant                                         |
+| **Administrator**    | A person or tool that manages Momobase through the dashboard or Admin API                                          |
+| **Provider adapter** | Go code that talks to one payment provider's API                                                                   |
+| **Provider account** | Your credentials for one provider, for one country and currency                                                    |
+| **Route**            | A rule that sends one service (collection or disbursement) and payment method to a provider account, at a priority |
+| **Transaction**      | Momobase's record of one collection or disbursement                                                                |
 
 ## Next
 
-- [Choose your integration](/guide/choose) — the server, the Go package, or both.
-- Read the [payment lifecycle](/guide/payment-lifecycle) for the request and recovery paths, and [routing](/guide/routing) for eligibility and fallback.
-- [Create your first payment](/guide/first-payment) against a running instance.
+- [Quickstart](/guide/quickstart): run Momobase and make a test payment.
+- [Payment lifecycle](/guide/payment-lifecycle): what happens to a payment after you send it.
+- [Routing](/guide/routing): how Momobase picks a provider account.
+- [Go live](/guide/go-live): what production needs.

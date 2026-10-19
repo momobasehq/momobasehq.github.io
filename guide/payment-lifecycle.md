@@ -1,10 +1,10 @@
 # Payment lifecycle
 
-Momobase turns one application request into a normalized transaction, a provider attempt, and zero or more later status updates. This page explains why each stage exists and how uncertain provider outcomes recover.
+What happens to a collection or disbursement from the moment your application sends it until it reaches a final status.
 
-## Initial request
+## The request
 
-An authenticated application submits a collection or disbursement with an `Idempotency-Key`. Momobase then follows this sequence:
+Your application sends the payment with an `Idempotency-Key` header. Momobase then:
 
 ```mermaid
 sequenceDiagram
@@ -38,36 +38,32 @@ sequenceDiagram
     end
 ```
 
-The provider network call happens after the transaction and initial attempt commit. It never runs inside a database transaction.
+Momobase saves the transaction before it calls the provider. If the provider call fails or times out, the transaction is already recorded and Momobase follows it up.
 
-## Validation and normalization
+## Validation
 
-Momobase validates the fields shared by every provider:
+Momobase checks these fields on every payment:
 
-- `payment_method` is `momo`, `card`, `bank_transfer`, or `wallet`;
-- `amount` is a positive integer in the currency's minor unit;
-- `currency` has three characters and matches the application's currency;
-- `country` is an ISO 3166-1 alpha-2 code;
-- `reference` and `account` are present; and
-- text fields satisfy their length and shape limits.
+| Field            | Rule                                                      |
+| ---------------- | --------------------------------------------------------- |
+| `payment_method` | `momo`, `card`, `bank_transfer`, or `wallet`              |
+| `amount`         | A positive integer in the currency's minor unit           |
+| `currency`       | Three letters, and the same as the application's currency |
+| `country`        | An ISO 3166-1 alpha-2 code, such as `UG`                  |
+| `reference`      | Required                                                  |
+| `account`        | Required. The provider adapter may also check its format  |
 
-The request is normalized before its idempotency hash is calculated. Currency and country become uppercase, while payment method and scheme become lowercase. The account is trimmed but retains its case because provider identifiers may be case-sensitive.
-
-After routing, an adapter that implements `providers.RequestValidator` can validate and normalize the provider-specific `account` and `scheme`. It cannot change the amount, currency, country, reference, payment method, or transaction ID.
+Momobase uppercases `currency` and `country`, lowercases `payment_method` and `scheme`, and trims `account`.
 
 ## Idempotency
 
-The `Idempotency-Key` is required for every collection and disbursement. Its scope is one application.
+- `Idempotency-Key` is required on every collection and disbursement. Keys are per application.
+- Sending the same request with the same key returns the stored transaction. The provider is not called again.
+- Sending a different request with a used key fails.
 
-- Repeating the same normalized request with the same key returns the stored transaction without calling hooks or the provider again.
-- Reusing the key with a different request fails.
-- Concurrent requests using the same key converge on the transaction protected by the database uniqueness constraint.
-
-Use a stable business-operation identifier as the key. Keep the payload unchanged across retries.
+Use an ID from your own system, such as an order ID, as the key, and send the same body on every retry.
 
 ## Transaction states
-
-All request, webhook, and reconciliation updates use the same legal transition graph:
 
 ```mermaid
 stateDiagram-v2
@@ -88,26 +84,33 @@ stateDiagram-v2
     open --> done : request, webhook, or reconciliation
 ```
 
-Applying the current state again is a no-op. `succeeded`, `failed`, `cancelled`, and `expired` are terminal and cannot transition further.
+| Status       | Meaning                                                               |
+| ------------ | --------------------------------------------------------------------- |
+| `pending`    | Saved, not yet confirmed by the provider                              |
+| `processing` | The provider accepted it and is working on it                         |
+| `unknown`    | The provider call failed or gave no answer. Momobase will check again |
+| `succeeded`  | Final. The money moved                                                |
+| `failed`     | Final. The provider rejected it                                       |
+| `cancelled`  | Final. It was cancelled                                               |
+| `expired`    | Final. It expired before completing                                   |
 
-## Provider result
+A final status never changes.
 
-The selected adapter returns its provider reference, status, message, and optional structured raw response. Momobase maps common provider status names to its transaction states. Adapters with bespoke upstream codes should map them to the exported `providers.Tx*` constants themselves.
+## How a payment reaches a final status
 
-If the provider call fails or returns no response, Momobase records the transaction as `unknown` and schedules reconciliation. Provider errors are redacted before persistence and logging.
+A payment can be updated from three places. All three follow the same state rules.
 
-After a committed status change, `OnTransactionChanged` observers receive the previous status, new status, source, transaction identifiers, routing identifiers, amount, and currency. Observer failures are logged and cannot roll back the committed change.
+| Source                  | When                                                                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| The provider's response | Right after Momobase calls the provider                                                                                          |
+| A webhook               | The provider calls `POST /webhooks/<provider-account-id>`. See [webhook authentication](/api/conventions#webhook-authentication) |
+| Reconciliation          | A worker asks the provider for the status of every unresolved payment. It retries with growing delays, up to 32 minutes apart    |
 
-## Webhook path
+Momobase never sends a saved payment to a different provider. An unresolved payment is always checked against the provider it was sent to.
 
-Providers send callbacks to `POST /webhooks/:providerAccountID`, which authenticates them in [two layers](/api/conventions#webhook-authentication) before anything is applied.
+## Get notified of changes
 
-A verified event is stored idempotently first. When it supplies transaction fields, they must match the transaction. An event that arrives before its provider reference can be matched stays pending, and reconciliation retries it.
+- **From your application:** read the transaction with `GET /api/v1/transactions/<id>`, or by your reference.
+- **In Go:** register an `OnTransactionChanged` [hook](/library/hooks). It runs after every saved status change.
 
-## Reconciliation path
-
-The reconciliation worker selects non-terminal transactions whose next check is due and calls `QueryTransaction` on the original provider account. It locks and re-reads each transaction before applying the result, preventing a late poll from overwriting a webhook or request result that committed first.
-
-Unresolved checks use an exponential delay capped at 32 minutes. Terminal results clear the next reconciliation time. The same worker also retries stored webhook events that have not yet matched a transaction.
-
-See [Operate the server](/server/operations) for worker and provider-health checks.
+See [Operate the server](/server/operations) to check workers and provider health.

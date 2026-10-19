@@ -4,44 +4,44 @@ layout: home
 hero:
     name: Momobase
     text: Payment infrastructure you control
-    tagline: One self-hosted API for collections, disbursements, routing, provider health, and reconciliation.
+    tagline: One self-hosted API for collections and disbursements across mobile money, bank, and card providers.
     image:
         src: /logo.svg
         alt: Momobase Logo
     actions:
         - theme: brand
-          text: Run the server
-          link: /server/
-        - theme: brand
-          text: Embed the library
-          link: /library/
+          text: Quickstart
+          link: /guide/quickstart
         - theme: alt
-          text: Understand Momobase
+          text: What is Momobase?
           link: /guide/
+        - theme: alt
+          text: Choose your integration
+          link: /guide/choose
 
 features:
     - icon: 📦
-      title: Momobase Server
-      details: A container image and release binaries for Linux, macOS, and Windows. The HTTP API, its provider adapters, and an administration dashboard in one process.
+      title: Run the server
+      details: One binary or container image with the API, the official provider adapters, and an administration dashboard. Configure it with environment variables.
       link: /server/install
     - icon: 🐹
-      title: Go package
-      details: Embed the payment engine in your own program to compile in provider adapters, payment hooks, and extra routes.
+      title: Embed the Go package
+      details: Build Momobase into your own Go program to add provider adapters, payment hooks, and HTTP routes.
       link: /library/
-    - icon: 🟦
-      title: TypeScript SDK
-      details: A dependency-free client for both the application and administration APIs, with token refresh handled for you.
+    - icon: 🧩
+      title: Call it from your app
+      details: TypeScript and Python SDKs for the payment and administration APIs. They handle tokens for you.
       link: /sdk/
     - icon: 💳
       title: One payment API
-      details: Applications get one contract while provider adapters absorb the credentials, payloads, and status models behind it.
+      details: Your applications use one contract. Provider adapters handle each provider's credentials, payloads, and statuses.
       link: /guide/
-    - icon: ⚙️
-      title: Operational by default
-      details: Route by service, method, country, currency, priority, and health, then reconcile whatever is left unresolved.
+    - icon: 🔀
+      title: Routing and fallback
+      details: Send each payment to a provider account by service, method, country, currency, priority, and health.
       link: /guide/routing
-    - icon: 🧭
-      title: Not sure which to install?
-      details: The server and the library run the same engine. Compare what each one gives you before committing to either.
-      link: /guide/choose
+    - icon: ✅
+      title: Go live
+      details: One checklist of everything a production instance needs.
+      link: /guide/go-live
 ---

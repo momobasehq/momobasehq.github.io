@@ -1,8 +1,14 @@
-# Routing payments
+# Routing
 
-Routing connects a normalized payment request to one loaded provider account. It is deterministic: Momobase considers active routes in ascending priority order, then chooses the oldest route when priorities are equal.
+Routing picks the provider account for each payment. You control it by creating routes.
 
-## Route selection
+## What a route is
+
+A route connects one **service** (`collection` or `disbursement`) and one **payment method** (`momo`, `card`, `bank_transfer`, or `wallet`) to a provider account, with a **priority**. Lower numbers are tried first. Routes with the same priority are tried oldest first.
+
+You can create a route only for a provider account that is active and loaded, and only for a service and payment method its adapter supports.
+
+## How a provider account is picked
 
 ```mermaid
 flowchart TD
@@ -21,44 +27,32 @@ flowchart TD
     Healthy --> Selected[Use its provider account]
 ```
 
-A route is eligible only when all of these conditions hold:
+A route is used only if all of these are true:
 
-1. The route is active and matches the requested service and payment method.
+1. The route is active and matches the payment's service and payment method.
 2. Its provider account is active.
 3. The provider account's country and currency match the payment.
-4. The provider account has an initialized runtime.
-5. The adapter declares the matching service and payment-method capability.
-6. The in-memory circuit is not open.
-7. The latest health snapshot is not `down`, `disabled`, or `misconfigured`, and its recorded circuit is not open.
+4. The provider account is loaded and its adapter supports the service and payment method.
+5. Its circuit breaker is closed.
+6. Its latest health check is not `down`, `disabled`, or `misconfigured`. A provider account that has never been checked can be used.
 
-A provider that has never been health-checked has no snapshot. That first-run state does not block routing.
+If no route passes, the payment fails with `ROUTE_UNAVAILABLE`. Work through [Diagnose ROUTE_UNAVAILABLE](/server/operations#diagnose-route-unavailable).
 
-## Priority and fallback
+## Fallback
 
-Lower numeric values have higher preference. Routes with the same priority are tried from oldest to newest. If a candidate fails an eligibility check, selection continues to the next route.
+To add a backup provider, create a second route for the same service and payment method with a higher priority number. Momobase uses it whenever the first route fails a check above. [Add a backup provider](/tutorials/dashboard-fallback) walks through it.
 
-Fallback happens during selection only. Once Momobase commits a transaction and attempt for a selected account, it does not send that transaction to a different provider because the provider call fails. An uncertain outcome must be reconciled against the original provider to avoid duplicate money movement.
+Fallback happens only while picking a route. Once a payment is saved and sent to a provider account, Momobase never resends it to another provider, even if the call fails.
 
-## Payment-method discovery
+## Circuit breaker and health
 
-`GET /api/v1/payment-methods` uses the same candidate checks as payment creation. It reports a service and payment-method pair when at least one route could handle it at that moment.
+| Mechanism       | Opens when                                            | Effect                                                                                           |
+| --------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Circuit breaker | 3 provider calls in a row fail                        | Routes to the account are skipped for 30 seconds, then one test call decides whether to close it |
+| Health worker   | 3 health checks in a row fail, or the circuit is open | The account is marked `down` and its routes are skipped until a check succeeds                   |
 
-The endpoint can filter by `service_type` and `country`. Currency comes from the authenticated application. Schemes are absent because they are free-form provider values rather than routing criteria.
+Invalid customer data and calls cancelled by your application don't count as failures.
 
-Availability can change after discovery because an operator may change a route or provider account, or provider health may deteriorate. The payment request remains authoritative.
+## Check what can route
 
-## Provider capabilities
-
-Capabilities come from the adapter after `Init`. Each capability is one service and payment-method pair, and a route can be created only for an active, loaded provider account and one of its declared capabilities.
-
-An adapter whose capabilities do not match what it implements fails to load at all, so it never reaches routing. [Build a provider adapter](/library/providers#implement-payment-operations) covers those rules.
-
-## Health and circuit breaking
-
-Provider calls run under a bounded context. Three consecutive provider-operation failures open the account's in-memory circuit for 30 seconds. After that interval, one half-open probe is allowed: success closes the circuit, while failure opens it again.
-
-Caller cancellation does not count as a provider failure. Provider-request validation also bypasses the circuit because invalid customer data is not evidence of an upstream outage.
-
-The health worker separately records provider reachability. Three consecutive failed checks, or an open circuit, marks the provider down and removes its routes from consideration until health recovers.
-
-When a request returns `ROUTE_UNAVAILABLE`, work through the checklist in [Operate the server](/server/operations#diagnose-route-unavailable).
+`GET /api/v1/payment-methods` lists the service and payment method pairs that can route right now. Filter with `service_type` and `country`. The currency comes from the application. A payment can still fail if something changes between this call and the payment.

@@ -1,80 +1,98 @@
 # Embed an instance
 
-Import the root module when Momobase should run inside a Go program with compiled providers, hooks, or additional Fiber routes. If you do not need any of those, [the server](/server/) already is this program.
+Run Momobase inside your own Go program. If you do not need custom provider adapters, hooks, or extra routes, use [the server](/server/) instead.
+
+## What you need
+
+- Go 1.25 or newer.
+- A Go module for your program.
 
 ## Create an instance
 
-```sh
-go mod init example.com/payments
-go get github.com/momobasehq/momobase@latest
-```
+1. Create a module and add Momobase:
 
-```go
-package main
+    ```sh
+    go mod init example.com/payments
+    go get github.com/momobasehq/momobase@latest
+    ```
 
-import (
-	"log"
+2. Write `main.go`:
 
-	"github.com/momobasehq/momobase"
-	"github.com/momobasehq/momobase/providers/dummy"
-)
+    ```go
+    package main
 
-func main() {
-	instance, err := momobase.New(
-		momobase.WithProvider("dummy", dummy.New),
-		momobase.WithAddr(":9090"),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() { _ = instance.Close() }()
+    import (
+    	"log"
 
-	if err := instance.Run(); err != nil {
-		log.Fatal(err)
-	}
-}
-```
+    	"github.com/momobasehq/momobase"
+    	"github.com/momobasehq/momobase/providers/dummy"
+    )
 
-`New` opens the database and prepares the HTTP server, providers, and workers, so the caller must close the returned instance. It does not start listeners or background workers — `Run` or `Serve` does that, after active provider accounts have been loaded.
+    func main() {
+    	instance, err := momobase.New(
+    		momobase.WithProvider("dummy", dummy.New),
+    		momobase.WithAddr(":9090"),
+    	)
+    	if err != nil {
+    		log.Fatal(err)
+    	}
+    	defer func() { _ = instance.Close() }()
 
-At least one provider is required; Momobase registers none automatically. Provider codes become the values operators select when creating provider accounts.
+    	if err := instance.Run(); err != nil {
+    		log.Fatal(err)
+    	}
+    }
+    ```
 
-Without `WithConfig`, `New` uses `momobase.DefaultConfig()`: SQLite in `./data`, port 9090, migrations applied, and placeholder secrets. That is enough to [create your first payment](/guide/first-payment) and nothing more — see [Configure the library](/library/configuration) for every field, and start from `DefaultConfig()` rather than a `momobase.Config{}` literal, which gets Go zero values and therefore no workers, no migrations, and no database type.
+3. Run it:
+
+    ```sh
+    go run .
+    ```
+
+The API is now on `http://localhost:9090`. Create an administrator with [`SeedAdmin`](#control-the-lifecycle), then follow the [Quickstart](/guide/quickstart).
+
+Keep in mind:
+
+- Register at least one provider. Momobase registers none on its own. The code you register under (`"dummy"` above) is the `provider_code` used when creating a provider account.
+- Without `WithConfig`, `New` uses `momobase.DefaultConfig()`: SQLite in `./data`, port `9090`, migrations applied, and placeholder secrets. That is for local development only. For anything else, see [Configuration](/library/configuration).
+- Start from `DefaultConfig()`, not a `momobase.Config{}` literal. A literal has Go zero values: no database type, no migrations, no workers.
+- `New` opens the database, so always `Close` the instance. Listeners and workers start only when you call `Run` or `Serve`.
 
 ## Control the lifecycle
 
-- `Run()` serves until `SIGINT` or `SIGTERM` and shuts down gracefully.
-- `Serve(ctx)` serves until the context is cancelled or the server stops.
-- `Close()` stops the server and workers and closes the database connection pool. Safe to call more than once.
-- `Addr()` returns the configured address, or the bound address after starting with port `0`.
+| Method                                  | What it does                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------- |
+| `Run()`                                 | Serves until `SIGINT` or `SIGTERM`, then shuts down gracefully                  |
+| `Serve(ctx)`                            | Serves until the context is cancelled or the server stops                       |
+| `Close()`                               | Stops the server and workers and closes the database pool; safe to call again   |
+| `Addr()`                                | Returns the configured address, or the bound address after starting with port 0 |
+| `Migrate(ctx)`                          | Applies pending migrations                                                      |
+| `SeedAdmin(ctx, email, password, name)` | Creates the first administrator; fails if the email already exists              |
 
-An instance can be served only once. Construct a fresh one for each test or restart, and allow enough termination grace for the 10-second HTTP shutdown window.
-
-Use `Migrate(ctx)` and `SeedAdmin(ctx, email, password, name)` when the host owns setup tasks. `SeedAdmin` is a one-time bootstrap rather than a startup hook: a repeated call with the same email fails.
+An instance serves only once. Create a new one for each test or restart. Allow at least 10 seconds of termination grace for HTTP shutdown.
 
 ```go
-if err := instance.Migrate(context.Background()); err != nil {
+if err := instance.SeedAdmin(context.Background(), "you@example.com", "change me", "You"); err != nil {
 	log.Fatal(err)
 }
 ```
 
-## Deploy the host
+## Deploy your program
 
-The host owns the executable, container image, process manager, and deployment topology. The operational policy does not change with the host, so [Deploy the server](/server/deployment) applies here too — a shared database for multiple replicas, TLS terminated in front, deliberate migrations, and workers enabled on exactly one replica.
+Follow [Deploy the server](/server/deployment) and the [Go live](/guide/go-live) checklist. The same rules apply; set them in `Config` instead of environment variables:
 
-What differs is only how you express it:
+| Rule                             | Server variable         | `Config` field                     |
+| -------------------------------- | ----------------------- | ---------------------------------- |
+| Migrate deliberately             | `AUTO_MIGRATE=false`    | `cfg.Features.AutoMigrate = false` |
+| Run workers on one replica only  | `WORKERS_ENABLED=false` | `cfg.Workers.Enabled = false`      |
+| Turn on production safety checks | `APP_ENV=production`    | `cfg.App.Env = "production"`       |
 
-| Policy                       | In the server           | Here                               |
-| ---------------------------- | ----------------------- | ---------------------------------- |
-| Migrate deliberately         | `AUTO_MIGRATE=false`    | `cfg.Features.AutoMigrate = false` |
-| One worker owner per cluster | `WORKERS_ENABLED=false` | `cfg.Workers.Enabled = false`      |
-| Production safety checks     | `APP_ENV=production`    | `cfg.App.Env = "production"`       |
-
-With `AutoMigrate` disabled, `New` logs any pending migrations by name rather than applying them. Run `instance.Migrate(ctx)` from a single process before serving traffic.
+With `AutoMigrate` off, `New` logs pending migrations instead of applying them. Call `instance.Migrate(ctx)` from one process before serving traffic.
 
 ## Extend the Fiber application
 
-`App()` returns Momobase's `*fiber.App`. Add application routes before serving it:
+`App()` returns Momobase's `*fiber.App`. Add routes before calling `Run` or `Serve`:
 
 ```go
 import "github.com/gofiber/fiber/v3"
@@ -84,24 +102,22 @@ instance.App().Get("/ready", func(c fiber.Ctx) error {
 })
 ```
 
-Register routes before calling `Run` or `Serve`, and keep them out of the `/api/v1`, `/api/admin`, and `/webhooks` prefixes.
+- Do not register routes under `/api/v1`, `/api/admin`, or `/webhooks`.
+- `/` serves static files from [`App.PublicDir`](/library/configuration#application) (`mb_public` by default) when that directory exists. A request that matches no file falls through to your routes. `instance.PublicDir()` returns `""` when no directory is served:
 
-`/` is already served from [`App.PublicDir`](/library/configuration#application) when that directory exists — `mb_public` by default. A request matching no file under it falls through to a route registered here, so mounting your own pages or a dashboard alongside a static site works either way round. `instance.PublicDir()` tells you which case you are in:
+    ```go
+    if instance.PublicDir() == "" {
+    	instance.App().Get("/", func(c fiber.Ctx) error {
+    		return c.Redirect().To("/console/")
+    	})
+    }
+    ```
 
-```go
-if instance.PublicDir() == "" {
-	instance.App().Get("/", func(c fiber.Ctx) error {
-		return c.Redirect().To("/console/")
-	})
-}
-```
-
-Momobase uses Fiber and fasthttp, so `App()` is not a standard-library `http.Handler`. Keep a separate listener or add an adapter if the rest of your application uses `net/http`.
-
-Use `DB()` and `Logger()` only when an extension needs the instance-owned database handle or structured logger; prefer the public APIs for payment operations. Do not close the value returned by `DB` — `instance.Close` owns that pool. A logger supplied with `WithLogger` stays owned by the host.
+- `App()` is Fiber v3 on fasthttp, not a standard-library `http.Handler`. Use a separate listener or an adapter if the rest of your program uses `net/http`.
+- `DB()` returns the instance's `*gorm.DB` and `Logger()` its `*slog.Logger`. Do not close the database handle; `instance.Close` owns it. A logger you pass with `WithLogger` stays yours to close.
 
 ## Next
 
-- [Add hooks](/library/hooks) to reject a payment before routing or observe committed changes.
+- [Add hooks](/library/hooks) to reject or observe payments.
 - [Build a provider adapter](/library/providers) for a real payment rail.
 - Look up every symbol in the [Go API reference](/library/go-api).

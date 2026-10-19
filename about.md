@@ -5,38 +5,42 @@ aside: false
 
 # About Momobase
 
-Momobase is an open-source, self-hosted payment orchestration service. It gives applications one API for collections and disbursements while provider adapters handle credentials, request formats, webhooks, and status mapping.
+Momobase is an open-source, self-hosted payment service. Applications use one API for collections and disbursements. Provider adapters handle each provider's credentials, request formats, webhooks, and statuses.
 
-## Why Momobase exists
+## Who it's for
 
-Payment providers expose different contracts and operational behavior. Supporting each provider directly spreads payment logic across applications and makes routing, retries, and reconciliation difficult to operate consistently.
+Teams that run their own services and have their own contracts with payment providers:
 
-Momobase keeps that complexity in one service. Applications use a stable payment contract while operators control provider accounts, routing rules, transaction data, and deployment infrastructure.
+- **Application developers** integrate one payment API.
+- **Operators** manage provider accounts, routes, health, and reconciliation.
+- **Provider authors** write adapters for new payment providers.
 
-## Who Momobase is for
+## What it handles
 
-Momobase is designed for teams that can operate a service and maintain direct commercial relationships with payment providers. Application developers integrate with one payment API, provider authors translate upstream contracts, and operators manage credentials, routes, health, and reconciliation.
+- Application credentials, administrators, roles, and permissions
+- Idempotent collections and disbursements
+- Provider accounts with encrypted credentials, health checks, and routing
+- Transaction statuses, webhooks, and reconciliation
+- Audit records and a full Admin API
 
-## What Momobase handles
+Momobase is not a payment provider, merchant of record, or order system. You keep the contract with each provider, and your application stays the source of truth for orders.
 
-- Application credentials, administrator roles, and permissions.
-- Idempotent collections and disbursements.
-- Provider accounts, encrypted configuration, health, and routing.
-- Normalized transaction state, webhooks, and reconciliation.
-- Audit records and a complete Admin API.
+## Credits
 
-## What stays outside Momobase
+Momobase is mobile money built the [PocketBase](https://pocketbase.io) way. Like PocketBase, it is:
 
-Momobase is not a payment provider, merchant of record, or order-management system. You keep the commercial relationship with each provider, and your application remains the source of truth for orders and customer-facing business state.
+- **One self-contained binary** with an embedded administration dashboard, served at `/_/`.
+- **A Go package you can extend**, with hooks and your own routes, when the binary isn't enough.
+- **Simple to host**: SQLite by default, and a public folder (`mb_public`, after PocketBase's `pb_public`) for your own static files.
 
-## How you use it
+Thanks to [Gani Georgiev and the PocketBase contributors](https://github.com/pocketbase/pocketbase) for the idea.
 
-Momobase ships as three pieces. [Momobase Server](/server/) is the runnable distribution — a container image or a release binary, configured from the environment. [The Go package](/library/) is the same engine as a library, for programs that need their own provider adapters, hooks, or routes. [The TypeScript SDK](/sdk/) is how an application talks to whichever one you run.
+## Get started
 
-The included dummy provider is deterministic, intended for development, and moves no money.
-
-Start with the [Momobase guide](/guide/) to understand the runtime model, [choose an integration](/guide/choose), or go straight to [creating your first payment](/guide/first-payment).
+- [What is Momobase?](/guide/)
+- [Quickstart](/guide/quickstart)
+- [Contributing](/contributing)
 
 ::: warning Project status
-Momobase is early-stage software. Review its configuration, provider adapters, operational controls, and failure behavior before using it for production money movement.
+Momobase is early-stage software. Review its configuration, provider adapters, and failure behavior before moving real money.
 :::

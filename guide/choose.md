@@ -1,38 +1,30 @@
 # Choose your integration
 
-Momobase ships as three things. Which you need depends on whether you are running the service, extending it, or calling it.
+| You want to                                                                         | Use                                                 |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Run Momobase as a service                                                           | [Momobase Server](/server/)                         |
+| Build Momobase into a Go program, with your own provider adapters, hooks, or routes | [Go package](/library/)                             |
+| Call Momobase from your application                                                 | [An SDK](/sdk/) or the [HTTP API](/api/conventions) |
 
-| You want to                                 | Use                         |
-| ------------------------------------------- | --------------------------- |
-| Run Momobase as a service                   | [Momobase Server](/server/) |
-| Compile your own provider adapters or hooks | [The Go package](/library/) |
-| Call a running instance from an application | [The TypeScript SDK](/sdk/) |
+Your application uses an SDK or the HTTP API with either the server or the Go package.
 
-The SDK is not an alternative to the other two — it is how an application talks to whichever one you run.
+## Server or Go package
 
-## Server or library
+Both run the same engine, HTTP API, and database schema. You can switch later without migrating data.
 
-Both run the same payment engine, the same HTTP API, and the same database schema. The server is the library with a command-line interface, environment configuration, and a dashboard wrapped around it.
+|                                 | [Server](/server/)                                                                                                  | [Go package](/library/)                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Install                         | Container image or release binary                                                                                   | `go get`, then write `main()`          |
+| You need                        | Docker, or nothing for the binary                                                                                   | Go 1.25 or newer                       |
+| Configuration                   | Environment variables or a `.env` file                                                                              | A `momobase.Config` value in your code |
+| Provider adapters               | `dummy` plus the [official providers](/library/official-providers): MTN, Airtel, Yo! Payments, MarzPay, Flutterwave | Any adapter you register               |
+| Payment hooks and custom routes | No                                                                                                                  | Yes                                    |
+| Administration dashboard        | Included                                                                                                            | Not included                           |
+| Upgrades                        | Pull a new image or run `momobase self-update`                                                                      | Update the module and rebuild          |
 
-|                          | [Server](/server/)                           | [Library](/library/)                   |
-| ------------------------ | -------------------------------------------- | -------------------------------------- |
-| Install                  | Container image or a release binary          | `go get`, then write `main()`          |
-| Go toolchain             | Not needed                                   | Required                               |
-| Configuration            | Environment variables and `.env`             | A `momobase.Config` value in your code |
-| Provider adapters        | Only those compiled into the published build | Any adapter you register               |
-| Hooks and custom routes  | Not available                                | Available                              |
-| Administration dashboard | Included                                     | Not included                           |
-| Executable and image     | Published for you                            | Yours to build                         |
-| Upgrades                 | Pull a new tag                               | Bump the module and rebuild            |
-
-**Start with the server.** It is the shorter path to a running instance, and the dashboard makes provisioning visible while you are learning the model. The published build registers the deterministic `dummy` provider, so you can drive a payment end to end before holding any real credentials.
-
-**Move to the library when you hit one of its walls.** Provider adapters are compiled in, not loaded at runtime, so a rail that nobody has upstreamed means either forking the server repository and rebuilding, or embedding the library and keeping your own `main()`. Hooks and extra Fiber routes are library-only for the same reason.
-
-Nothing is lost by starting with the server: the API, the database schema, and the configuration fields are identical, so moving to the library later is a packaging change rather than a migration.
+**Start with the server** unless you need something only the Go package offers: a provider that isn't built in, [payment hooks](/library/hooks), or [extra HTTP routes](/library/embedding#extend-the-fiber-application).
 
 ## Next
 
-- [Understand Momobase](/guide/) before installing anything.
-- [Install the server](/server/install), or [embed the library](/library/embedding).
-- [Create your first payment](/guide/first-payment) once either one is running.
+- [Quickstart](/guide/quickstart) with the server.
+- [Embed an instance](/library/embedding) with the Go package.

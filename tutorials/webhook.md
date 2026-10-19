@@ -1,8 +1,12 @@
 # Settle a pending payment with a webhook
 
-Many providers accept a payment, then report the result later by calling a webhook. In this tutorial you make the `dummy` provider leave a payment pending, then play the provider and settle it with a signed webhook.
+Make the `dummy` provider leave a payment pending, then settle it by sending a signed provider webhook yourself.
 
-This takes about ten minutes and continues from [Set up payments in the dashboard](/tutorials/dashboard-setup). You need `curl` and `openssl`.
+## What you need
+
+- The setup from [Set up payments in the dashboard](/tutorials/dashboard-setup).
+- `curl` and `openssl`.
+- About ten minutes.
 
 ## 1. Make the provider leave payments pending
 
@@ -13,11 +17,11 @@ This takes about ten minutes and continues from [Set up payments in the dashboar
     { "webhook_secret": "tutorial-webhook-secret", "outcome": "pending" }
     ```
 
-Open the account's page by selecting its name, and copy its **Account ID**.
+3. Select the account's name and copy its **Account ID**.
 
 ## 2. Create a payment
 
-On **Tutorial checkout**, open **Testing**, get a token, and select **Collect**. The response shows `"status": "pending"`. Copy its `transaction_id` and `provider_reference`.
+On **Tutorial checkout**, open **Testing**, get a token, and select **Collect**. The response shows `"status": "pending"`. Copy its `provider_reference`.
 
 ```sh
 export MOMOBASE_URL=http://localhost:9090
@@ -26,16 +30,14 @@ export PROVIDER_ID='paste-the-account-id'
 export PROVIDER_REFERENCE='paste-the-provider-reference'
 ```
 
-### Checkpoint
-
-On **Transactions**, the payment is `pending`. Momobase is waiting for the provider. The reconciliation worker keeps asking the provider too, but this provider will never answer on its own.
+On **Transactions**, the payment is `pending`.
 
 ## 3. Send the provider's webhook
 
-Provider webhooks arrive at `/webhooks/{providerAccountID}`, so each account has its own URL to give its provider. Momobase checks two things before it accepts one:
+Each provider account receives webhooks at `/webhooks/{providerAccountID}`. A webhook needs:
 
-- The `X-Webhook-Secret` header must equal the account's `webhook_secret`.
-- The adapter checks the provider's own proof. The `dummy` adapter expects a hex HMAC-SHA256 of the raw body in `X-Momobase-Signature`.
+- An `X-Webhook-Secret` header equal to the account's `webhook_secret`.
+- The provider's own signature. For `dummy`, that is a hex HMAC-SHA256 of the raw body in `X-Momobase-Signature`.
 
 ```sh
 BODY="{\"reference\":\"$PROVIDER_REFERENCE\",\"status\":\"SUCCESSFUL\"}"
@@ -50,27 +52,20 @@ curl --fail-with-body --silent --show-error \
 	"$MOMOBASE_URL/webhooks/$PROVIDER_ID"
 ```
 
-The adapter translates the provider's `SUCCESSFUL` into Momobase's `succeeded`.
-
-### Checkpoint
-
-The response contains `"ok":true`, and on **Transactions** the payment is now `succeeded`.
+The response contains `"ok":true`. On **Transactions**, the payment is now `succeeded`.
 
 ## 4. Try what Momobase rejects
 
-Send the same webhook again. It answers `ok` but changes nothing: Momobase deduplicates deliveries, because providers often retry.
+- Send the same webhook again. It returns `ok` and changes nothing: duplicate deliveries are ignored.
+- Change one character of `SIGNATURE` and send it. The response is `400 WEBHOOK_ERROR`.
 
-Change one character of `SIGNATURE` and send it. The response is `400 WEBHOOK_ERROR`: the adapter refused the signature. A body whose amount, currency, country, or account disagrees with the stored transaction is refused the same way.
+A webhook whose amount, currency, country, or account does not match the stored transaction is also rejected.
 
 ## 5. Restore the provider
 
-Replace the configuration with `{ "webhook_secret": "tutorial-webhook-secret" }` so the other tutorials behave as written.
-
-## Recap
-
-A provider accepted a payment without settling it, and an authenticated, signed webhook finished it. Webhooks and reconciliation apply the same state rules, so whichever reports first wins and the other becomes a no-op.
+Replace the configuration with `{ "webhook_secret": "tutorial-webhook-secret" }` so the other tutorials work as written.
 
 ## Next
 
-- Read the [payment lifecycle](/guide/payment-lifecycle) for how uncertain payments resolve.
+- [Webhook authentication](/api/conventions#webhook-authentication) in the HTTP conventions.
 - Implement `VerifyWebhook` for a real provider in [Build a provider adapter](/library/providers).

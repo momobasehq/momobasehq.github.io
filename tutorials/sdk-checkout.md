@@ -1,8 +1,12 @@
 # Take payments from a Node.js backend
 
-In this tutorial you write the payment step of a checkout backend with the TypeScript SDK. It checks what can be paid for, creates a collection that is safe to retry, and waits for the final outcome.
+Write the payment step of a checkout backend with the TypeScript SDK: list payment methods, create a collection that is safe to retry, and wait for the final status.
 
-This takes about fifteen minutes. You need Node.js 24 and the app credential from [Set up payments in the dashboard](/tutorials/dashboard-setup).
+## What you need
+
+- Node.js 24.
+- The **Client ID** and **Client secret** from [Set up payments in the dashboard](/tutorials/dashboard-setup).
+- About fifteen minutes.
 
 ## 1. Create the project
 
@@ -13,7 +17,7 @@ npm pkg set type=module
 npm install momobase
 ```
 
-Export the credential you copied from the dashboard:
+Export the credential:
 
 ```sh
 export MOMOBASE_CLIENT_ID='paste-the-client-id'
@@ -27,7 +31,7 @@ Create `checkout.ts`:
 ```ts
 import { MomobaseAPIError, MomobaseClient } from "momobase";
 
-// One long-lived client per credential shares its cached token across requests.
+// Create one client per credential and reuse it.
 const app = new MomobaseClient({
 	baseUrl: "http://localhost:9090",
 	clientId: process.env.MOMOBASE_CLIENT_ID!,
@@ -47,7 +51,7 @@ async function checkout(orderId: string, phone: string, amount: number) {
 			reference: orderId,
 			description: `Order ${orderId}`,
 		},
-		// Derived from the order, so a retry of the same order cannot pay twice.
+		// Derived from the order, so retrying the same order cannot pay twice.
 		{ idempotencyKey: `checkout-${orderId}` },
 	);
 	console.log(
@@ -85,7 +89,7 @@ try {
 }
 ```
 
-Amounts are integer minor units, so `50000` is UGX 50,000.
+Amounts are integers in the currency's minor unit, so `50000` is UGX 50,000.
 
 ## 3. Take a payment
 
@@ -93,60 +97,47 @@ Amounts are integer minor units, so `50000` is UGX 50,000.
 node checkout.ts ORDER-1
 ```
 
-### Checkpoint
-
-The script prints `Routable: momo`, then a transaction ID with `succeeded`, then `Order finished: succeeded`.
+You should see `Routable: momo`, a transaction ID with `succeeded`, then `Order finished: succeeded`.
 
 ## 4. Retry the same order
-
-Run exactly the same command again:
 
 ```sh
 node checkout.ts ORDER-1
 ```
 
-The message is now `idempotent replay` and the transaction ID is the same. Momobase recognized the idempotency key and returned the original payment instead of charging again. This is what makes it safe to retry after a timeout or a crash.
-
-Reusing a key with a different payload, such as a different amount, is refused with `PAYMENT_ERROR`.
+The message is now `idempotent replay` and the transaction ID is the same: Momobase returned the original payment instead of charging again. Reusing a key with a different payload, such as a different amount, fails with `PAYMENT_ERROR`.
 
 ## 5. Wait for a slow provider
 
-Real providers often answer "processing" and settle later. Make the `dummy` provider do that:
+Make the `dummy` provider settle later:
 
 1. In the dashboard, select **Providers**, then **Configure** on **Tutorial simulator**.
 2. On **Configuration**, enter `{ "webhook_secret": "tutorial-webhook-secret", "settle_after": 1 }` and select **Replace configuration**.
 
-Then pay a new order:
+Pay a new order:
 
 ```sh
 node checkout.ts ORDER-2
 ```
 
-### Checkpoint
+The payment starts as `processing` and the script prints `now processing`. Within about two minutes, reconciliation settles it and the script prints `now succeeded`.
 
-The payment starts as `processing`, and the script keeps printing `now processing`. Within about two minutes the reconciliation worker queries the provider, and the script prints `now succeeded`.
-
-Polling suits a script. In a real backend, return to the customer straight away and check the transaction later, or [notify your backend](/tutorials/notify-backend) from Momobase when it changes.
+In a real backend, respond to the customer immediately and check the transaction later instead of polling in the request.
 
 ## 6. Handle a refused payment
 
-In the dashboard, select **Deactivate** on every provider account, then pay another order:
+In the dashboard, select **Deactivate** on every provider account, then:
 
 ```sh
 node checkout.ts ORDER-3
 ```
 
-The script prints `Payment refused: 503 ROUTE_UNAVAILABLE`. Branch on `error.code`, which is stable, rather than on the message.
+The script prints `Payment refused: 503 ROUTE_UNAVAILABLE`. Branch on `error.code`, not on the message.
 
-Reactivate the accounts and restore the configuration to `{ "webhook_secret": "tutorial-webhook-secret" }` when you are done.
-
-## Recap
-
-- Ask `paymentMethods.list()` what can route before showing payment options.
-- Derive the idempotency key from your own order, so retries are harmless.
-- A payment can finish after the request that created it. Treat only `succeeded`, `failed`, `cancelled`, and `expired` as final.
+When you are done, reactivate the accounts and set the configuration back to `{ "webhook_secret": "tutorial-webhook-secret" }`.
 
 ## Next
 
-- [Application client](/sdk/application-client) documents every method.
-- [Errors and cancellation](/sdk/errors) covers timeouts and which errors to retry.
+- The [TypeScript SDK README](https://github.com/momobasehq/sdk#readme) documents every method and error.
+- Prefer Python? See the [Python SDK](https://github.com/momobasehq/sdk-python#readme).
+- [Notify your backend of payment changes](/tutorials/notify-backend) instead of polling.

@@ -1,21 +1,26 @@
 # Monitor payments and providers
 
-The dashboard shows the state of every payment and provider. In this tutorial you make a provider fail on purpose, then follow the signs of it through the dashboard, the way you would during a real incident.
+Make a provider fail on purpose, then find the signs of it in the dashboard.
 
-This takes about five minutes and continues from [Set up payments in the dashboard](/tutorials/dashboard-setup).
+## What you need
+
+- The setup from [Set up payments in the dashboard](/tutorials/dashboard-setup).
+- Optional: the backup from [Add a backup provider](/tutorials/dashboard-fallback).
+- About five minutes.
 
 ## 1. Read the dashboard
 
 Select **Dashboard**.
 
-- **System** reports the database connection.
-- **Runtime providers** counts adapters loaded in memory, and **Active accounts** counts accounts serving traffic.
-- **Workers** lists the background loops: health checks, reconciliation, and cleanup.
-- The **Transactions** chart counts payments over the selected range. Filter it by **App** or **Provider**.
+| Tile or chart         | Shows                                                               |
+| --------------------- | ------------------------------------------------------------------- |
+| **System**            | The database connection                                             |
+| **Runtime providers** | Adapters loaded in memory                                           |
+| **Active accounts**   | Provider accounts serving traffic                                   |
+| **Workers**           | Background loops: health checks, reconciliation, cleanup            |
+| **Transactions**      | Payments over the selected range; filter by **App** or **Provider** |
 
 ## 2. Make a provider fail
-
-Tell the `dummy` provider to fail its health checks:
 
 1. Select **Providers**, then **Configure** on **Tutorial simulator**.
 2. On the **Configuration** tab, enter:
@@ -26,45 +31,34 @@ Tell the `dummy` provider to fail its health checks:
 
 3. Select **Replace configuration**, then **Done**.
 
-Saving replaces the whole configuration and reloads the adapter, so `webhook_secret` must be included again.
+Saving replaces the whole configuration, so always include `webhook_secret`.
 
 ## 3. Watch the health checks
 
-Select **Operations**. The **Provider health** table shows the latest verdict for each account, its circuit state, the consecutive failure count, and the last error.
+Select **Operations**. The **Provider health** table shows each account's latest result, circuit state, consecutive failures, and last error.
 
-### Checkpoint
-
-After a few health-check intervals, **Tutorial simulator** shows a growing failure count, and **Last error** says the upstream is unavailable. After three consecutive failures it is marked down, and routing skips it. With the backup from [Add a backup provider](/tutorials/dashboard-fallback), payments keep flowing to **Tutorial backup**; without it, a payment is rejected with `ROUTE_UNAVAILABLE`.
-
-The **Runtime providers** table on the same page lists the loaded adapters and how many capabilities each declares.
+After a few health-check intervals, **Tutorial simulator** shows a growing failure count and **Last error** says the upstream is unavailable. After three consecutive failures it is marked down and routing skips it. With a backup, payments go to **Tutorial backup**; without one, payments fail with `ROUTE_UNAVAILABLE`.
 
 ## 4. Inspect a payment
 
-Select **Transactions** and open any payment. Two fields matter most during an incident:
+Select **Transactions** and open any payment.
 
-- **Provider account** and **Provider reference** tell you which provider holds the payment, and how that provider identifies it.
-- **Reconciliation attempts** and **Next reconciliation** show whether Momobase is still asking the provider for an outcome. A payment left `pending` or `unknown` is queried again with increasing delays until it resolves.
+- **Provider account** and **Provider reference** show which provider holds the payment and its ID there.
+- **Reconciliation attempts** and **Next reconciliation** show whether Momobase is still asking the provider for an outcome. Momobase keeps querying a `pending` or `unknown` payment, with increasing delays, until it resolves.
 
 ## 5. Check balances
 
-The **Balances** card on **Providers** queries each active account's provider live. Use it to confirm a disbursement account holds enough funds.
+The **Balances** card on **Providers** queries each active account's provider live. Use it to check that a disbursement account has funds.
 
 ## 6. See who changed what
 
-Select **Audit log**. Your configuration change from step 2 is at the top, with the administrator who made it and their IP address.
+Select **Audit log**. Your change from step 2 is at the top, with the administrator who made it and their IP address.
 
 ## 7. Restore the provider
 
-Replace the configuration of **Tutorial simulator** with `{ "webhook_secret": "tutorial-webhook-secret" }`. Health recovers on the next successful checks.
-
-## Recap
-
-- **Dashboard** answers whether the system is up.
-- **Operations** answers whether each provider is healthy and routable.
-- **Transactions** answers where a payment is and whether it is still being resolved.
-- **Audit log** answers who changed the configuration.
+Replace the configuration of **Tutorial simulator** with `{ "webhook_secret": "tutorial-webhook-secret" }`. Health recovers after the next successful checks.
 
 ## Next
 
-- [Operate the server](/server/operations) covers the same signals from the command line, and how to diagnose `ROUTE_UNAVAILABLE`.
-- Read the [payment lifecycle](/guide/payment-lifecycle) for how reconciliation resolves uncertain payments.
+- [Operate the server](/server/operations) covers the same signals from the command line and how to diagnose `ROUTE_UNAVAILABLE`.
+- [Payment lifecycle](/guide/payment-lifecycle) explains reconciliation.

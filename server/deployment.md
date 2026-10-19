@@ -33,79 +33,86 @@ architecture-beta
     jb2:B --> T:db
 ```
 
-Set `APP_ENV=production` before anything else. It turns the [validation gates](/server/configuration#staging-and-production-validation) on, so a deployment that forgot a secret or left TLS off fails at start-up rather than at the first payment.
+## What you need
+
+- A host or orchestrator that runs the container image or the binary.
+- An HTTPS address and a TLS proxy or load balancer in front of the server.
+- PostgreSQL or MySQL if you run more than one replica. SQLite works for a single host.
+- The [three secrets](/server/configuration#secrets).
+- Backups for the database and the encryption key.
+
+## Steps
+
+1. [Turn on production checks](#turn-on-production-checks).
+2. [Choose a database](#choose-a-database).
+3. [Terminate TLS in front](#terminate-tls-in-front).
+4. [Control migrations](#control-migrations).
+5. [Assign worker ownership](#assign-worker-ownership).
+6. [Configure probes](#configure-probes).
+7. [Scale and restart](#scale-and-restart).
+
+Then work through the [go-live checklist](/guide/go-live).
+
+## Turn on production checks
+
+Set `APP_ENV=production`. The server then refuses to start with a missing secret, a non-HTTPS public URL, or another unsafe setting. See [Staging and production validation](/server/configuration#staging-and-production-validation).
 
 ## Choose a database
 
-SQLite is right for local development and for a single host that will stay single. Use PostgreSQL or MySQL as soon as more than one replica needs a shared view of transactions.
+| Deployment            | Database                    |
+| --------------------- | --------------------------- |
+| One host, one replica | SQLite or a shared database |
+| More than one replica | PostgreSQL or MySQL         |
 
-The container keeps its SQLite file in the `/data` volume. Mount that volume, or the database disappears with the container:
-
-```sh
--v momobase-data:/data
-```
-
-For PostgreSQL, set `DB_SSLMODE=require`. Validation rejects `disable` in production for any host other than `db`, `localhost`, or `127.0.0.1`.
+- With SQLite in the container, mount the `/data` volume: `-v momobase-data:/data`. Without it, the database is deleted with the container.
+- With PostgreSQL over a network, set `DB_SSLMODE=require`. Production checks reject `disable` for any host other than `db`, `localhost`, or `127.0.0.1`.
 
 ## Terminate TLS in front
 
-The server does not terminate TLS. Put a proxy or load balancer in front of it, and tell the server about it:
+The server does not serve HTTPS itself. Put a proxy or load balancer in front of it and set:
 
-- `APP_PUBLIC_URL` must be the `https://` URL callers actually reach.
-- `TRUSTED_PROXY_CIDRS` must list the proxy addresses whose forwarded headers may be believed.
-- `CORS_ALLOWED_ORIGINS` must name the browser origins that call the API, not `*`.
+| Variable               | Value                                            |
+| ---------------------- | ------------------------------------------------ |
+| `APP_PUBLIC_URL`       | The `https://` URL callers use                   |
+| `TRUSTED_PROXY_CIDRS`  | The addresses of your proxies, and nothing else  |
+| `CORS_ALLOWED_ORIGINS` | The browser origins that call the API; never `*` |
 
-Leaving `TRUSTED_PROXY_CIDRS` empty behind a proxy is the failure worth watching for: every request then appears to come from the proxy, so rate limiting keys the entire internet into a single bucket. Setting it too widely is the opposite failure — forwarded headers are forgeable, so list only proxies you control.
-
-Review the [request and rate limits](/api/conventions#content-type-and-request-limits) before sizing the proxy.
+If `TRUSTED_PROXY_CIDRS` is empty behind a proxy, every client shares one rate limit. Check the [request and rate limits](/api/conventions#content-type-and-request-limits) when you size the proxy.
 
 ## Control migrations
 
-`AUTO_MIGRATE` defaults to `true`, which is correct for a single instance. For a controlled rollout set it to `false` and migrate deliberately: the server then logs any pending migrations by name and starts without applying them.
-
-Migrations are forward-only. There are no automatic down migrations.
+`AUTO_MIGRATE=true` (the default) applies migrations at start-up. That is fine for a single instance. For several replicas, set `AUTO_MIGRATE=false` on all of them and migrate once per release:
 
 1. Back up the database and the encryption key.
-2. Confirm the running release tolerates the new schema, or stop writes.
-3. Start one instance with `AUTO_MIGRATE=true` and let it exit, or run one replica ahead of the others.
-4. Roll out the remaining replicas once migration has succeeded.
+2. Make sure the running release works with the new schema, or stop writes.
+3. Start one instance with `AUTO_MIGRATE=true`, and wait for it to finish migrating.
+4. Roll out the remaining replicas.
 
-Never run replicas against a schema version their code does not support.
+Migrations only go forward. There are no down migrations. Never run a replica against a schema its version does not support.
 
 ## Assign worker ownership
 
-Every process with `WORKERS_ENABLED=true` runs its own health, reconciliation, and cleanup loops. There is no distributed lease — the server does not coordinate ownership between replicas.
+Every process with `WORKERS_ENABLED=true` runs its own health, reconciliation, and cleanup workers. Replicas do not coordinate.
 
-Run multiple replicas with `WORKERS_ENABLED=true` on exactly one, and `false` on the rest. Reassign that role during failover. Reconciliation defends itself against concurrent updates, so duplicates are not corrupting, but they multiply provider traffic and operational noise.
+Set `WORKERS_ENABLED=true` on exactly one replica and `false` on the rest. If that replica fails, enable workers on another one.
 
 ## Configure probes
 
-| Endpoint                      | Use for                               | Authenticated |
-| ----------------------------- | ------------------------------------- | ------------- |
-| `/ping`                       | Process liveness                      | No            |
-| `/healthz`                    | API readiness                         | No            |
-| `/api/admin/system/health`    | Database and runtime diagnostics      | Yes           |
-| `/api/admin/health/providers` | Per-provider health and circuit state | Yes           |
+| Endpoint                      | Use for                           | Authenticated |
+| ----------------------------- | --------------------------------- | ------------- |
+| `/ping`                       | Liveness                          | No            |
+| `/healthz`                    | Readiness                         | No            |
+| `/api/admin/system/health`    | Database and runtime diagnostics  | Yes           |
+| `/api/admin/health/providers` | Provider health and circuit state | Yes           |
 
-The container's own health check calls `/healthz`. Neither `/ping` nor `/healthz` calls a provider, which is deliberate: a provider outage must not restart the process. Alert on provider health separately.
+The container's health check calls `/healthz`. Neither `/ping` nor `/healthz` checks providers, so a provider outage does not restart the server. Alert on provider health separately.
 
 ## Scale and restart
 
-The API is stateless apart from the database, so replicas scale horizontally once workers are assigned. Allow enough termination grace for the 10-second HTTP shutdown window.
+Replicas share nothing except the database, so you can add more once workers are assigned. Give each replica at least 10 seconds to shut down, the length of its HTTP shutdown window.
 
-## Providers are compiled in
+## Providers
 
-The published build registers only `dummy`. Running a real payment rail means forking the repository, adding the adapter to `providers/providers.go`, and building your own image — or [embedding the library](/library/) instead and keeping your own `main()`. [Compare the two](/guide/choose).
+The published build includes `dummy`, `mtn`, `airtel`, `yopayments`, `marzpay`, and `flutterwave`. See [Included providers](/server/#included-providers). For any other provider, fork the server repository, add the adapter to `providers/providers.go`, and build your own image, or [embed the Go package](/library/). [Compare the two](/guide/choose).
 
-## Before going live
-
-- Keep the encryption key and OAuth secrets out of source control.
-- Back up the encryption key alongside the database.
-- Terminate TLS and set `APP_PUBLIC_URL` to the HTTPS address.
-- List real proxies in `TRUSTED_PROXY_CIDRS` and real origins in `CORS_ALLOWED_ORIGINS`.
-- Migrate once before rolling out replicas.
-- Enable workers on exactly one replica.
-- Monitor `/ping`, `/healthz`, provider health, reconciliation, and audit logs.
-- Exercise provider failure behavior before moving money.
-
-[Operating the server](/server/operations) covers the diagnostic workflows for when one of these goes wrong.
+Next: [Operate the server](/server/operations).

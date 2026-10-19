@@ -1,8 +1,14 @@
 # Reject large payments with a hook
 
-Hooks run your own Go code inside Momobase. In this tutorial you build a small Momobase program that rejects any payment above a limit before it reaches a provider.
+Build a Go program that embeds Momobase and rejects any payment above a limit before it reaches a provider.
 
-This takes about ten minutes. You need Go and the command-line steps in [Create your first payment](/guide/first-payment), which you run against the program you build here. The dashboard is part of Momobase Server, so it is not available in a program of your own.
+## What you need
+
+- Go 1.25 or newer.
+- `curl` and `jq`, for the [Quickstart](/guide/quickstart) steps you run against this program.
+- About ten minutes.
+
+The dashboard is part of Momobase Server only, so this tutorial uses the API.
 
 ## 1. Create the program
 
@@ -58,21 +64,21 @@ func main() {
 }
 ```
 
-The hook is bound after `New` and before `Run`, so it sees the first request.
+Bind hooks after `New` and before `Run`.
 
-## 2. Run it and provision routing
+## 2. Run it and set up routing
 
 ```sh
 go run .
 ```
 
-In another terminal, follow [Create your first payment](/guide/first-payment) from the start. It creates an application, a provider account, and a route in this program's database.
+In another terminal, run the [Quickstart](/guide/quickstart) steps that create the application, provider account, and route, then make its payment. Skip starting the server and creating the administrator: this program does both, with `admin@example.com` and `local-password`.
 
-### Checkpoint
-
-The tutorial's 50,000 UGX collection returns `succeeded`. That amount is under the limit, so the hook returned `nil`.
+The Quickstart's 50,000 UGX collection returns `succeeded`, because it is under the limit.
 
 ## 3. Send a payment over the limit
+
+In the same terminal, so `$APP_TOKEN` and `$MOMOBASE_URL` are still set:
 
 ```sh
 curl --silent --show-error \
@@ -92,17 +98,9 @@ curl --silent --show-error \
 	jq
 ```
 
-### Checkpoint
-
-The response is HTTP `400` with the code `PAYMENT_REJECTED`. The message is generic: Momobase logs your hook's error text but never returns it to the caller.
-
-The hook runs before routing and persistence, so no transaction exists and no provider was called.
-
-## Recap
-
-You compiled Momobase into your own program and added a policy the API does not have. `OnPaymentRequest` rejects payments; its sibling `OnTransactionChanged` observes committed status changes.
+The response is HTTP `400` with the code `PAYMENT_REJECTED`. Momobase logs your hook's error text but does not return it to the caller. No transaction is created and no provider is called.
 
 ## Next
 
-- Read [Add payment hooks](/library/hooks) for ordering, sensitive fields, and observers.
-- See every option for the program in [Configure the library](/library/configuration).
+- [Add payment hooks](/library/hooks), including `OnTransactionChanged` for observing status changes.
+- [Configure the library](/library/configuration).

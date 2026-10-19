@@ -1,14 +1,18 @@
 # Notify your backend of payment changes
 
-Momobase does not call your application when a payment changes; applications read transactions when they need to. When you embed Momobase in Go, a hook can push each change to your backend instead. In this tutorial you build that hook and a small receiver.
+Build a Go program that embeds Momobase and posts every transaction status change to your backend, signed so the backend can trust it.
 
-This takes about fifteen minutes. You need Go, Node.js 24, and the command-line steps in [Create your first payment](/guide/first-payment).
+Momobase does not call applications on its own; this hook adds that.
+
+## What you need
+
+- Go 1.25 or newer and Node.js 24.
+- `curl` and `jq`, for the [Quickstart](/guide/quickstart) steps you run against this program.
+- About fifteen minutes.
 
 ## 1. Write a receiver
 
-The receiver stands in for your backend. It checks a signature, so only your Momobase can post to it.
-
-Create `receiver.mjs` anywhere:
+The receiver stands in for your backend and rejects requests without a valid signature. Create `receiver.mjs` anywhere:
 
 ```js
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -98,7 +102,7 @@ func main() {
 	}
 }
 
-// notify posts a signed summary of the change. It is best effort: a failed post is logged, not retried.
+// notify posts a signed summary of the change. A failed post is logged, not retried.
 func notify(ctx context.Context, event hooks.TransactionChangedEvent) error {
 	body, err := json.Marshal(map[string]any{
 		"transaction_id":  event.TransactionID,
@@ -142,23 +146,17 @@ func notify(ctx context.Context, event hooks.TransactionChangedEvent) error {
 go run .
 ```
 
-In a third terminal, follow [Create your first payment](/guide/first-payment) from the start.
+In a third terminal, run the [Quickstart](/guide/quickstart) steps that create the application, provider account, and route, then make its payment. Skip starting the server and creating the administrator: this program does both, with `admin@example.com` and `local-password`.
 
-### Checkpoint
+When the collection is created, the receiver prints the change with `status` `succeeded` and `source` `request`. Later changes from a webhook or reconciliation arrive the same way, with `source` set to `webhook` or `reconciliation`.
 
-When the tutorial's collection is created, the receiver prints the change: `status` is `succeeded` and `source` is `request`. Changes applied later by a webhook or by reconciliation arrive the same way, with `source` set to `webhook` or `reconciliation`.
-
-## 4. See what happens when the receiver is down
+## 4. Stop the receiver
 
 Stop the receiver and create another collection with a new `Idempotency-Key` and `reference`. The payment still succeeds, and the Momobase log records the failed notification.
 
-That is the limit of this design: a notification sent while your backend is down is lost. When every change must arrive, store it in an outbox table in the hook and deliver from there with retries. Your backend can also read the transaction with `GET /api/v1/transactions/{id}` to catch up.
-
-## Recap
-
-You pushed payment changes out of Momobase with an observer hook, signed them so the receiver can trust them, and bounded the call so a slow backend cannot stall payments.
+Notifications sent while your backend is down are lost. If every change must arrive, write it to an outbox table in the hook and deliver from there with retries, or have your backend read `GET /api/v1/transactions/{id}` to catch up.
 
 ## Next
 
 - [Add payment hooks](/library/hooks) lists every event field.
-- [Reject large payments with a hook](/tutorials/payment-limit) uses the other hook, which runs before routing.
+- [Reject large payments with a hook](/tutorials/payment-limit) uses the hook that runs before routing.

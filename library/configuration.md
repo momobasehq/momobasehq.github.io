@@ -1,10 +1,8 @@
 # Configure the library
 
-The library reads no environment variables and no configuration files. A `momobase.Config` value is the only source of settings, and the host application decides where its values come from — flags, a configuration file, a secret manager, or the environment.
+A `momobase.Config` value is the only source of settings. The library reads no environment variables or files; your program fills the fields from wherever it keeps settings. [Momobase Server](/server/configuration) maps its environment variables onto these same fields.
 
-[Momobase Server](/server/) is one such host, and [its variables](/server/configuration) are the names it chose for these fields.
-
-`momobase.DefaultConfig()` returns a complete development baseline. Copy it, change what differs, and pass it to `momobase.New` with `momobase.WithConfig`:
+Start from `momobase.DefaultConfig()`, change what you need, and pass it with `momobase.WithConfig`:
 
 ```go
 cfg := momobase.DefaultConfig()
@@ -17,31 +15,28 @@ instance, err := momobase.New(
 )
 ```
 
-`New` uses `DefaultConfig()` when no `WithConfig` is supplied, so an instance starts unconfigured for local development. Every default is a development value: SQLite in `./data`, a placeholder encryption key, and placeholder token secrets. [Validation](#staging-and-production-validation) rejects all three once `App.Env` is `staging` or `production`.
+- Without `WithConfig`, `New` uses `DefaultConfig()`.
+- Every default is a development value: SQLite in `./data`, a placeholder encryption key, and placeholder token secrets. [Validation](#staging-and-production-validation) rejects the placeholders when `App.Env` is `staging` or `production`.
+- Fields are not merged with defaults. A `momobase.Config{}` literal has Go zero values: no database type, no migrations, no workers.
 
-`Config` is a plain struct of plain fields. There is no partial-configuration merge: a `momobase.Config{}` you build yourself gets Go zero values, not defaults, so start from `DefaultConfig()` unless you intend to set every field.
+Before going to production, work through the [Go live](/guide/go-live) checklist.
 
 ## Application
 
 `Config.App`, type `momobase.AppConfig`.
 
-| Field                | Type       | Default                 | Description                                                  |
-| -------------------- | ---------- | ----------------------- | ------------------------------------------------------------ |
-| `Name`               | `string`   | `momobase`              | Name reported by runtime metadata                            |
-| `Env`                | `string`   | `development`           | Selects staging and production safety checks                 |
-| `Addr`               | `string`   | `:9090`                 | Address passed to the Fiber listener                         |
-| `PublicURL`          | `string`   | `http://localhost:9090` | Externally reachable base URL                                |
-| `CORSAllowedOrigins` | `[]string` | `http://localhost:9090` | Browser origins allowed by CORS                              |
-| `TrustedProxyCIDRs`  | `[]string` | empty                   | Proxy addresses or CIDRs trusted to supply forwarded headers |
-| `PublicDir`          | `string`   | `mb_public`             | Directory of static files served at `/`                      |
+| Field                | Type       | Default                 | Description                                                                 |
+| -------------------- | ---------- | ----------------------- | --------------------------------------------------------------------------- |
+| `Name`               | `string`   | `momobase`              | Name reported by runtime metadata                                           |
+| `Env`                | `string`   | `development`           | `staging` or `production` (exact match) turns on the safety checks          |
+| `Addr`               | `string`   | `:9090`                 | Listen address                                                              |
+| `PublicURL`          | `string`   | `http://localhost:9090` | Externally reachable base URL; must be `https://` in staging and production |
+| `CORSAllowedOrigins` | `[]string` | `http://localhost:9090` | Browser origins allowed by CORS                                             |
+| `TrustedProxyCIDRs`  | `[]string` | empty                   | Proxy addresses or CIDRs trusted to send forwarded headers                  |
+| `PublicDir`          | `string`   | `mb_public`             | Directory of static files served at `/`                                     |
 
-Leave `TrustedProxyCIDRs` empty when no proxy sits in front of Momobase. When it is empty, rate limiting and request logs use the immediate peer address. Add only proxies you control because callers can forge forwarded headers.
-
-`Env` is compared against `staging` and `production` exactly; any other value, including `test` or an empty string, skips the safety checks.
-
-`PublicDir` is resolved relative to the process working directory and holds your own site — a landing page, documentation, a checkout. Momobase ships no content for it, so a missing directory is the normal case rather than an error: `/` is then left unrouted for [a route you add yourself](/library/embedding#extend-the-fiber-application). Set it to an empty string to serve nothing at all. `instance.PublicDir()` reports the directory actually being served, which is empty when the configured one does not exist.
-
-Nothing under it can shadow the API: the static route is registered after every other one and a request matching no file falls through to whatever would have answered it, including routes you mount on `App()` afterwards.
+- `TrustedProxyCIDRs`: leave empty when no proxy sits in front. Behind a proxy, list only proxies you control.
+- `PublicDir`: resolved against the working directory. A missing directory is normal; `/` is then free for [your own route](/library/embedding#extend-the-fiber-application). Set `""` to serve nothing. Static files never shadow API routes. `instance.PublicDir()` returns the directory actually served, or `""`.
 
 ## Logging
 
@@ -51,7 +46,7 @@ Nothing under it can shadow the API: the static route is registered after every 
 | ------- | -------- | ------- | ----------------------------------- |
 | `Level` | `string` | `info`  | `debug`, `info`, `warn`, or `error` |
 
-Unknown log levels fall back to `info`. The default logger writes structured JSON to standard output. `momobase.WithLogger` replaces it with a host-owned `*slog.Logger`, in which case `Level` is not consulted.
+Unknown levels become `info`. The default logger writes JSON to standard output. `momobase.WithLogger` replaces it with your own `*slog.Logger`, and `Level` is then ignored.
 
 ## Database
 
@@ -68,9 +63,10 @@ Unknown log levels fall back to `info`. The default logger writes structured JSO
 | `Name`     | `string` | `momobase`           | PostgreSQL or MySQL database             |
 | `SSLMode`  | `string` | `disable`            | PostgreSQL TLS mode passed to the driver |
 
-An unrecognized `Type` fails construction. SQLite is pure Go — no cgo — and creates the parent directory of `Path`; the default path is relative, so it resolves against the host process's working directory. PostgreSQL sessions use UTC. MySQL uses `utf8mb4`, parses time values, and uses UTC.
-
-`Port` defaults to the PostgreSQL port. Set it explicitly when using MySQL.
+- An unknown `Type` fails construction.
+- SQLite is pure Go (no cgo). Momobase creates the parent directory of `Path`; a relative path resolves against the working directory.
+- Set `Port` to `3306` for MySQL. The default is the PostgreSQL port.
+- PostgreSQL and MySQL sessions use UTC. MySQL uses `utf8mb4`.
 
 ## Security and tokens
 
@@ -88,11 +84,13 @@ An unrecognized `Type` fails construction. SQLite is pure Go — no cgo — and 
 | `AppClientIDPrefix`         | `string`        | `app_client`              | Prefix for generated application client IDs   |
 | `AppClientSecretPrefix`     | `string`        | `mb_test`                 | Prefix for generated client secrets           |
 
-The three placeholder credentials are exported as `momobase.DefaultEncryptionMasterKeyBase64`, `momobase.DefaultAdminOAuthSecret`, and `momobase.DefaultAppOAuthSecret`, so a host can assert it replaced them.
+Durations are `time.Duration` values, for example `15 * time.Minute`.
+
+The placeholders are exported as `momobase.DefaultEncryptionMasterKeyBase64`, `momobase.DefaultAdminOAuthSecret`, and `momobase.DefaultAppOAuthSecret`, so you can check that you replaced them.
 
 ### Supply the secrets
 
-The three placeholders must be replaced before `App.Env` is `staging` or `production`:
+Replace all three before setting `App.Env` to `staging` or `production`:
 
 ```go
 cfg.Security.EncryptionMasterKeyBase64 = secrets.EncryptionKey
@@ -100,50 +98,50 @@ cfg.Security.AdminOAuthSecret = secrets.AdminOAuthSecret
 cfg.Security.AppOAuthSecret = secrets.AppOAuthSecret
 ```
 
-`EncryptionMasterKeyBase64` must decode to exactly 32 bytes or construction fails with `encryption key must decode to exactly 32 bytes`. The OAuth secrets are HMAC keys of any length from 32 characters up, and must differ from each other. [Generating and handling the three](/server/configuration#secrets) is the same problem whichever host reads them.
+| Field                       | Requirement                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `EncryptionMasterKeyBase64` | Must decode to exactly 32 bytes, or `New` fails with `encryption key must decode to exactly 32 bytes` |
+| `AdminOAuthSecret`          | At least 32 characters                                                                                |
+| `AppOAuthSecret`            | At least 32 characters, different from `AdminOAuthSecret`                                             |
 
-Durations are ordinary `time.Duration` values, so write them as `15 * time.Minute` rather than as a number of minutes.
+To generate them, see [Secrets](/server/configuration#secrets). Back up the encryption key with the database: without it, stored provider configuration cannot be decrypted.
 
 ## Workers
 
 `Config.Workers`, type `momobase.WorkersConfig`.
 
-| Field                    | Type            | Default     | Description                         |
-| ------------------------ | --------------- | ----------- | ----------------------------------- |
-| `Enabled`                | `bool`          | `true`      | Enables registration of all workers |
-| `HealthEnabled`          | `bool`          | `true`      | Enables provider health checks      |
-| `HealthInterval`         | `time.Duration` | 30 seconds  | Provider health-check interval      |
-| `ReconciliationEnabled`  | `bool`          | `true`      | Enables transaction reconciliation  |
-| `ReconciliationInterval` | `time.Duration` | 60 seconds  | Reconciliation scan interval        |
-| `CleanupEnabled`         | `bool`          | `true`      | Enables expired-session cleanup     |
-| `CleanupInterval`        | `time.Duration` | 300 seconds | Cleanup interval                    |
+| Field                    | Type            | Default     | Description                    |
+| ------------------------ | --------------- | ----------- | ------------------------------ |
+| `Enabled`                | `bool`          | `true`      | Master switch for all workers  |
+| `HealthEnabled`          | `bool`          | `true`      | Provider health checks         |
+| `HealthInterval`         | `time.Duration` | 30 seconds  | Provider health-check interval |
+| `ReconciliationEnabled`  | `bool`          | `true`      | Transaction reconciliation     |
+| `ReconciliationInterval` | `time.Duration` | 60 seconds  | Reconciliation scan interval   |
+| `CleanupEnabled`         | `bool`          | `true`      | Expired-session cleanup        |
+| `CleanupInterval`        | `time.Duration` | 300 seconds | Cleanup interval               |
 
-Workers run once when serving starts and then at the configured interval. Individual worker settings have no effect while `Enabled` is `false`.
-
-Because the defaults enable every worker, a `Config` you assemble field by field disables all of them — another reason to start from `DefaultConfig()`.
+Workers run once when serving starts, then at each interval. The individual switches do nothing while `Enabled` is `false`. With several replicas, enable workers on exactly one.
 
 ## Features
 
 `Config.Features`, type `momobase.FeaturesConfig`.
 
-| Field         | Type   | Default | Description                                          |
-| ------------- | ------ | ------- | ---------------------------------------------------- |
-| `AutoMigrate` | `bool` | `true`  | Applies migrations while constructing a new instance |
+| Field         | Type   | Default | Description                     |
+| ------------- | ------ | ------- | ------------------------------- |
+| `AutoMigrate` | `bool` | `true`  | Applies migrations during `New` |
 
-Set `AutoMigrate` to `false` when deployment automation runs `instance.Migrate(ctx)` separately. With it disabled, `New` logs a warning naming any pending migrations rather than applying them.
+With `AutoMigrate` set to `false`, `New` logs pending migrations by name and does not apply them. Run `instance.Migrate(ctx)` yourself.
 
 ## Staging and production validation
 
-When `App.Env` is `staging` or `production`, `Config.Validate` and therefore `momobase.New` reject:
+When `App.Env` is `staging` or `production`, `Config.Validate` (called by `New`) rejects:
 
 - the default encryption key;
-- OAuth secrets that are shorter than 32 characters or still carry the `change-me-` prefix;
-- an `App.PublicURL` that does not begin with `https://`;
-- `*` in `App.CORSAllowedOrigins`; and
-- `DB.SSLMode` of `disable` for PostgreSQL hosts other than `db`, `localhost`, or `127.0.0.1`.
+- OAuth secrets shorter than 32 characters or starting with `change-me-`;
+- an `App.PublicURL` that does not start with `https://`;
+- `*` in `App.CORSAllowedOrigins`;
+- `DB.SSLMode` set to `disable` for a PostgreSQL host other than `db`, `localhost`, or `127.0.0.1`.
 
-Validation errors name the Go field, such as `Security.AdminOAuthSecret must be at least 32 non-default characters for production`.
+Errors name the Go field, for example `Security.AdminOAuthSecret must be at least 32 non-default characters for production`.
 
-These checks are a baseline, not a complete deployment policy. Protect secrets, restrict network access, terminate TLS, back up the database and encryption key, and test provider failure behavior before moving money.
-
-Call `cfg.Validate()` yourself when you want a configuration error before construction. `New` calls it regardless. See [the Go API reference](/library/go-api#options) for the options that override a resolved configuration.
+Call `cfg.Validate()` yourself to catch errors before `New`. To change a resolved configuration with options, see [Options](/library/go-api#options).

@@ -1,74 +1,94 @@
-# TypeScript SDK
+# SDKs
 
-<div style="display:flex;gap:1rem">
+Official clients for the Momobase HTTP API. Each SDK's GitHub README is its full documentation.
 
-[![npm version](https://img.shields.io/npm/v/momobase)](https://www.npmjs.com/package/momobase)
+| SDK        | Package                                                     | Runtime                                                       | Documentation                                                            |
+| ---------- | ----------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| TypeScript | [`momobase` on npm](https://www.npmjs.com/package/momobase) | Node.js 24, or a browser with `fetch()` and `AbortController` | [momobasehq/sdk](https://github.com/momobasehq/sdk#readme)               |
+| Python     | [`momobase` on PyPI](https://pypi.org/project/momobase/)    | Python 3.11 or newer                                          | [momobasehq/sdk-python](https://github.com/momobasehq/sdk-python#readme) |
 
-[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](https://www.npmjs.com/package/momobase?activeTab=dependencies)
+Both SDKs have the same two clients:
 
-[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/momobasehq/sdk/blob/main/LICENSE.txt)
+| Client                | Calls              | Authenticates with                                           |
+| --------------------- | ------------------ | ------------------------------------------------------------ |
+| `MomobaseClient`      | Payment API        | An application credential: client ID and client secret       |
+| `MomobaseAdminClient` | Administration API | An administrator's email and password, or a saved token pair |
 
-</div>
+Both clients get a token on the first request, cache it, and refresh it for you.
 
-::: code-group
+## What you need
 
-```sh [npm]
+- A running Momobase instance. Follow the [Quickstart](/guide/quickstart) if you don't have one.
+- An application credential with the scopes you need, such as `collections:create` and `transactions:read`.
+- A route that can serve the payment. The Quickstart creates one.
+
+::: warning Keep the client secret on your server
+`MomobaseClient` holds an application client secret. Never ship it in a browser or mobile app bundle.
+:::
+
+## TypeScript
+
+```sh
 npm install momobase
 ```
 
-```sh [pnpm]
-pnpm add momobase
+```ts
+import { MomobaseClient } from "momobase";
+
+const mb = new MomobaseClient({
+	baseUrl: "http://localhost:9090",
+	clientId: process.env.MOMOBASE_CLIENT_ID!,
+	clientSecret: process.env.MOMOBASE_CLIENT_SECRET!,
+});
+
+const payment = await mb.collections.create(
+	{
+		payment_method: "momo",
+		account: "256770000000",
+		amount: 50000,
+		currency: "UGX",
+		country: "UG",
+		reference: "ORDER-1",
+	},
+	{ idempotencyKey: "order-1" },
+);
+
+console.log(payment.transaction_id, payment.status);
 ```
 
-```sh [yarn]
-yarn add momobase
+Full documentation: [github.com/momobasehq/sdk](https://github.com/momobasehq/sdk#readme).
+
+## Python
+
+```sh
+pip install momobase
 ```
 
-```sh [bun]
-bun add momobase
+```python
+import os
+from momobase import MomobaseClient
+
+with MomobaseClient(
+    "http://localhost:9090",
+    client_id=os.environ["MOMOBASE_CLIENT_ID"],
+    client_secret=os.environ["MOMOBASE_CLIENT_SECRET"],
+) as mb:
+    payment = mb.collections.create(
+        {
+            "payment_method": "momo",
+            "account": "256770000000",
+            "amount": 50000,
+            "currency": "UGX",
+            "country": "UG",
+            "reference": "ORDER-1",
+        },
+        idempotency_key="order-1",
+    )
+    print(payment["transaction_id"], payment["status"])
 ```
 
-:::
+Full documentation: [github.com/momobasehq/sdk-python](https://github.com/momobasehq/sdk-python#readme).
 
-`momobase` is a typed client for the Momobase application and administration APIs. Use it when a TypeScript service or trusted web application should call Momobase without managing HTTP envelopes and access-token refresh directly.
+## Other languages
 
-## Choose a client
-
-| Client                | Use it for                                                                       | Credential                                                  |
-| --------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `MomobaseClient`      | Listing payment methods, creating payments, and reading application transactions | Application client ID and secret                            |
-| `MomobaseAdminClient` | Managing operators, applications, providers, routes, and system data             | Administrator email and password, or an existing token pair |
-
-Both clients use the global `fetch()` implementation available in modern browsers and Node.js. They return the `data` value from Momobase response envelopes and throw `MomobaseAPIError` for unsuccessful HTTP responses.
-
-::: warning Keep application secrets on a trusted server
-`MomobaseClient` holds an application client secret. Do not include that secret in a public browser or mobile bundle. Call it from a backend-for-frontend or another trusted service.
-:::
-
-## Authentication behavior
-
-Both clients authenticate lazily on the first API call. They cache access and refresh tokens in memory, refresh shortly before expiry, share one refresh operation across concurrent requests, and retry one request after an HTTP `401`.
-
-`MomobaseClient` can authenticate again with its fixed client credential. `MomobaseAdminClient` can fall back to password authentication only when email and password were configured.
-
-## Package exports
-
-The package exports:
-
-- `MomobaseClient` and `MomobaseAdminClient`;
-- `MomobaseAPIError`;
-- API request, response, session, and resource types;
-- `AdminPermissions`, `AppScopes`, and `PermissionWildcard`; and
-- `permitted`, which checks a permission list and honors the wildcard.
-
-Use the exported constants when building permission-aware interfaces, but retrieve the server's permission catalogue when an interface must support newer server permissions.
-
-## Continue
-
-- [Install and configure the SDK](/sdk/installation).
-- [Create and query payments](/sdk/application-client).
-- [Manage Momobase](/sdk/admin-client).
-- [Understand sessions and token refresh](/sdk/sessions).
-- [Handle errors and cancellation](/sdk/errors).
-
-For endpoints not wrapped by the SDK, use the [API reference](/api-reference).
+Call the HTTP API directly. See [HTTP conventions](/api/conventions) and the [OpenAPI explorer](/api-reference).

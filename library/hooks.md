@@ -1,8 +1,14 @@
 # Add payment hooks
 
-Hooks add synchronous, in-process behavior to a Momobase instance compiled as a Go application. Use them to reject a new payment under application-specific policy or observe a committed transaction status change.
+Hooks run your Go code inside a Momobase instance. Use `OnPaymentRequest` to reject a new payment and `OnTransactionChanged` to react to a committed status change.
 
-Register hooks after `momobase.New()` and before `Run()` or `Serve()`:
+## What you need
+
+- A Go program that [embeds an instance](/library/embedding). Hooks are not available in the prebuilt server.
+
+## Register hooks
+
+Bind hooks after `momobase.New()` and before `Run()` or `Serve()`:
 
 ```go
 package extension
@@ -38,27 +44,27 @@ func Register(instance *momobase.Instance, appID string, maxAmount int64) {
 }
 ```
 
-The complete example lives in [`examples/extension`](https://github.com/momobasehq/momobase/tree/main/_examples/extension).
-
-Bind hooks before `Run` or `Serve` so the first request and worker iteration see the expected handlers.
+The complete program is in [`_examples/extension`](https://github.com/momobasehq/momobase/tree/main/_examples/extension).
 
 ## Reject a payment request
 
-`OnPaymentRequest()` runs after normalization and idempotency replay detection, but before routing and persistence. Handlers run in registration order and the first error stops the chain.
+`OnPaymentRequest` runs after validation and idempotency checks, before routing and before anything is stored.
 
-An error rejects the request with the stable API code `PAYMENT_REJECTED`. Momobase logs the handler error but does not return its text to the caller.
-
-The event includes account and party data. Treat these fields as sensitive and do not copy them into logs or returned errors.
-
-The hook runs synchronously in the request path. Honor the supplied context, keep handlers bounded, and avoid slow network calls. A handler can read the event but must not treat changes to it as changes to the payment request.
+- Handlers run in registration order. The first error stops the chain.
+- The caller receives `PAYMENT_REJECTED`. Your error text is logged, not returned.
+- It runs in the request path: honor the context and avoid slow network calls.
+- Changing the event does not change the payment request.
+- The event contains account and customer data. Do not copy it into logs or errors.
 
 ## Observe a transaction change
 
-`OnTransactionChanged()` runs after a status change commits. `Source` is `request`, `webhook`, or `reconciliation`. An observer error is logged, remaining observers still run, and the committed transaction is not rolled back.
+`OnTransactionChanged` runs after a status change commits.
 
-Use this hook for telemetry or best-effort side effects. It is not a durable message-delivery mechanism. Use a transactional outbox when another system must eventually receive every change.
+- Every handler runs, even if one returns an error. Errors are logged and the change is not rolled back.
+- Delivery is best effort. If another system must receive every change, use a transactional outbox instead.
+- The event excludes customer account data, provider credentials, raw responses, and webhook bodies.
 
-`Source` identifies the path that committed the change:
+`event.Source` tells you what caused the change:
 
 | Value            | Meaning                                         |
 | ---------------- | ----------------------------------------------- |
@@ -66,6 +72,8 @@ Use this hook for telemetry or best-effort side effects. It is not a durable mes
 | `webhook`        | A verified provider callback changed the status |
 | `reconciliation` | A provider status query changed the status      |
 
-The event excludes customer account data, provider credentials, raw responses, and webhook bodies.
+For all event fields and binding rules, see [the Go API reference](/library/go-api#hooks).
 
-`Bind` returns an idempotent unbind function; see [the Go API reference](/library/go-api#hooks) for binding semantics and the complete event fields.
+## Next
+
+- Try the tutorials [Reject large payments](/tutorials/payment-limit) and [Notify your backend](/tutorials/notify-backend).

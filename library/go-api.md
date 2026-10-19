@@ -1,90 +1,90 @@
 # Go API reference
 
-Import the root package to construct and operate a Momobase instance:
+| Package                                    | Contains                          |
+| ------------------------------------------ | --------------------------------- |
+| `github.com/momobasehq/momobase`           | Instance construction and control |
+| `github.com/momobasehq/momobase/providers` | Provider adapter contracts        |
+| `github.com/momobasehq/momobase/hooks`     | Hook event types                  |
 
-```go
-import "github.com/momobasehq/momobase"
-```
-
-Provider contracts live in `github.com/momobasehq/momobase/providers`, and lifecycle event types live in `github.com/momobasehq/momobase/hooks`.
+The full symbol list is on [pkg.go.dev](https://pkg.go.dev/github.com/momobasehq/momobase).
 
 ## Construction
 
 ### `New(opts ...Option) (*Instance, error)`
 
-Validates configuration, opens the database, optionally applies migrations, seeds authorization data, and constructs the API, services, provider runtime manager, workers, and hooks.
+Validates configuration, opens the database, applies migrations (unless `Features.AutoMigrate` is false), and builds the API, services, provider runtimes, workers, and hooks.
 
-Configuration is `DefaultConfig()` unless `WithConfig` supplies one. At least one provider factory must be registered. The caller owns every successful instance and must call `Close`.
+- Uses `DefaultConfig()` unless `WithConfig` is passed.
+- Requires at least one registered provider factory.
+- You must call `Close` on every instance it returns.
 
 ### `DefaultConfig() Config`
 
-Returns Momobase's development configuration baseline by value, so callers can edit it freely. Momobase reads no environment variables and no configuration files; a host that configures from the environment reads it itself and assigns the fields. See [Configuration](/library/configuration).
+Returns the development configuration by value. Edit the copy and pass it to `WithConfig`. See [Configuration](/library/configuration).
 
-The placeholder credentials it carries are also exported as `DefaultEncryptionMasterKeyBase64`, `DefaultAdminOAuthSecret`, and `DefaultAppOAuthSecret`.
+The placeholder secrets are also exported as `DefaultEncryptionMasterKeyBase64`, `DefaultAdminOAuthSecret`, and `DefaultAppOAuthSecret`.
 
 ### `Config.Validate() error`
 
-Reports configuration that is unsafe for `staging` or `production`. `New` calls it; call it yourself to fail earlier. Messages name the Go field rather than any environment variable.
+Returns an error for configuration that is unsafe in `staging` or `production`. `New` calls it. Messages name the Go field.
 
 ## Options
 
-| Option                        | Effect                                                                                         |
-| ----------------------------- | ---------------------------------------------------------------------------------------------- |
-| `WithConfig(cfg)`             | Uses a complete `Config` instead of `DefaultConfig()`                                          |
-| `WithConfigFunc(fn)`          | Mutates resolved configuration; functions run in supplied order after configuration resolution |
-| `WithAddr(addr)`              | Sets `Config.App.Addr`                                                                         |
-| `WithLogger(logger)`          | Replaces the configured JSON logger with a host-owned `*slog.Logger`                           |
-| `WithProvider(code, factory)` | Registers or replaces one provider factory under `code`                                        |
-| `WithProviders(factories)`    | Registers or replaces several provider factories                                               |
+| Option                        | Effect                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| `WithConfig(cfg)`             | Uses `cfg` instead of `DefaultConfig()`                                    |
+| `WithConfigFunc(fn)`          | Edits the resolved configuration; functions run in the order you pass them |
+| `WithAddr(addr)`              | Sets `Config.App.Addr`                                                     |
+| `WithLogger(logger)`          | Replaces the JSON logger with your own `*slog.Logger`                      |
+| `WithProvider(code, factory)` | Registers one provider factory under `code`                                |
+| `WithProviders(factories)`    | Registers several provider factories                                       |
 
-Blank provider codes and nil factories are rejected during construction. Supplying the same code more than once keeps the last factory.
+A blank provider code or nil factory fails construction. If you register the same code twice, the last factory wins.
 
 ## Instance lifecycle
 
-| Method             | Description                                                                                           |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `Run() error`      | Serves until `SIGINT` or `SIGTERM`, then shuts down gracefully                                        |
-| `Serve(ctx) error` | Starts provider runtimes, workers, and HTTP; stops when the context is cancelled or the server exits  |
-| `Close() error`    | Stops an active server and workers, then closes the database connection pool; safe to call repeatedly |
-| `Addr() string`    | Returns the configured address, or the bound address after serving begins with port `0`               |
+| Method             | Description                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| `Run() error`      | Serves until `SIGINT` or `SIGTERM`, then shuts down gracefully                                 |
+| `Serve(ctx) error` | Starts provider runtimes, workers, and HTTP; stops when `ctx` is cancelled or the server exits |
+| `Close() error`    | Stops the server and workers, then closes the database pool; safe to call repeatedly           |
+| `Addr() string`    | Returns the configured address, or the bound address after serving on port `0`                 |
 
-An instance can be served once. Calling `Serve` after it has already served or after it has closed returns an error. Context-driven shutdown is not returned as an error by `Instance.Serve`.
-
-`Close` waits for an active server and workers to stop. It does not close a logger supplied through `WithLogger`.
+- An instance serves once. `Serve` after a previous serve or after `Close` returns an error.
+- Cancelling the context is not returned as an error.
+- `Close` waits for the server and workers to stop. It does not close a logger passed with `WithLogger`.
 
 ## Setup and migrations
 
-| Method                                        | Description                                                                        |
-| --------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `Migrate(ctx) error`                          | Applies versioned migrations and converges current models; safe to call repeatedly |
-| `SeedAdmin(ctx, email, password, name) error` | Creates a `super_admin`; intended as a one-time bootstrap operation                |
-
-`New` calls `Migrate` automatically unless `Features.AutoMigrate` is false. `SeedAdmin` is not idempotent: calling it again with the same email returns the underlying uniqueness error.
+| Method                                        | Description                                                                |
+| --------------------------------------------- | -------------------------------------------------------------------------- |
+| `Migrate(ctx) error`                          | Applies migrations; safe to call repeatedly                                |
+| `SeedAdmin(ctx, email, password, name) error` | Creates a `super_admin`; fails with a uniqueness error if the email exists |
 
 ## Host integration
 
-| Method        | Result         | Use                                                                          |
-| ------------- | -------------- | ---------------------------------------------------------------------------- |
-| `App()`       | `*fiber.App`   | Add Fiber routes, mount the application, or exercise it in tests             |
-| `DB()`        | `*gorm.DB`     | Access the instance-owned database when an extension cannot use a public API |
-| `Logger()`    | `*slog.Logger` | Write extension logs through the configured structured logger                |
-| `PublicDir()` | `string`       | Reports the static directory served at `/`, empty when there is none         |
+| Method        | Returns        | Use                                                                |
+| ------------- | -------------- | ------------------------------------------------------------------ |
+| `App()`       | `*fiber.App`   | Add Fiber routes or exercise the API in tests                      |
+| `DB()`        | `*gorm.DB`     | Access the instance's database when no public API covers your need |
+| `Logger()`    | `*slog.Logger` | Write logs through the instance's logger                           |
+| `PublicDir()` | `string`       | The static directory served at `/`, or `""` when none is served    |
 
-`App` uses Fiber v3 and fasthttp; it is not a standard-library `http.Handler`. Database callers must not close the handle returned by `DB` because the instance owns it.
+`App` is Fiber v3 on fasthttp, not a standard-library `http.Handler`. Do not close the handle returned by `DB`.
 
 ## Hooks
 
 ### `OnPaymentRequest() *hooks.Hook[hooks.PaymentRequestEvent]`
 
-Returns the blocking pre-routing hook. Handlers run in registration order. The first error rejects the payment with `PAYMENT_REJECTED`; idempotent replays skip the hook.
+Blocking hook that runs before routing. Handlers run in registration order. The first error rejects the payment with `PAYMENT_REJECTED`. Idempotent replays skip the hook.
 
-`PaymentRequestEvent` contains:
+`PaymentRequestEvent` fields:
 
 | Field           | Meaning                                |
 | --------------- | -------------------------------------- |
 | `AppID`         | Calling application ID                 |
 | `ServiceType`   | `collection` or `disbursement`         |
-| `PaymentMethod` | Requested payment rail                 |
+| `PaymentMethod` | Requested payment method               |
 | `Amount`        | Integer amount in currency minor units |
 | `Currency`      | Normalized three-letter currency code  |
 | `Country`       | Normalized two-letter country code     |
@@ -97,9 +97,9 @@ Returns the blocking pre-routing hook. Handlers run in registration order. The f
 
 ### `OnTransactionChanged() *hooks.Hook[hooks.TransactionChangedEvent]`
 
-Returns the post-commit status hook. All handlers run even when one fails; errors are logged and do not roll back the transaction.
+Runs after a status change commits. Every handler runs even if one fails. Errors are logged and do not roll back the change.
 
-`TransactionChangedEvent` includes the source (`request`, `webhook`, or `reconciliation`), application and transaction identifiers, business reference, service, method, amount, currency, country, previous and new status, provider account ID, and provider reference. It excludes provider credentials, raw responses, webhook bodies, and customer account data.
+`TransactionChangedEvent` includes the source (`request`, `webhook`, or `reconciliation`), application and transaction IDs, business reference, service, method, amount, currency, country, previous and new status, provider account ID, and provider reference. It excludes provider credentials, raw responses, webhook bodies, and customer account data.
 
 ### Bind and remove handlers
 
@@ -108,6 +108,6 @@ unbind := instance.OnTransactionChanged().Bind(handler)
 defer unbind()
 ```
 
-`Bind` panics for a nil handler and returns an idempotent removal function. Binding and removal are safe during concurrent invocation. A handler already present in the current invocation snapshot may still finish.
-
-The authoritative package-level symbol reference is also available on [pkg.go.dev](https://pkg.go.dev/github.com/momobasehq/momobase).
+- `Bind` panics on a nil handler.
+- The returned function removes the handler and is safe to call more than once.
+- Binding and removing are safe while hooks run. A handler removed mid-invocation may still finish that invocation.

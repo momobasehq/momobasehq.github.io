@@ -61,7 +61,7 @@ export default defineConfig({
 			{ text: "Tutorials", link: "/tutorials/" },
 			{ text: "Server", link: "/server/" },
 			{ text: "Library", link: "/library/" },
-			{ text: "SDK", link: "/sdk/" },
+			{ text: "SDKs", link: "/sdk/" },
 			{
 				text: "API",
 				items: [
@@ -83,15 +83,13 @@ export default defineConfig({
 				{
 					text: "Guide",
 					items: [
-						{ text: "Understand Momobase", link: "/guide/" },
+						{ text: "What is Momobase?", link: "/guide/" },
 						{
 							text: "Choose your integration",
 							link: "/guide/choose",
 						},
-						{
-							text: "Create your first payment",
-							link: "/guide/first-payment",
-						},
+						{ text: "Quickstart", link: "/guide/quickstart" },
+						{ text: "Go live", link: "/guide/go-live" },
 					],
 				},
 				{
@@ -213,33 +211,6 @@ export default defineConfig({
 						{
 							text: "Provider API",
 							link: "/library/provider-api",
-						},
-					],
-				},
-			],
-			"/sdk/": [
-				{
-					text: "TypeScript SDK",
-					items: [
-						{ text: "Overview", link: "/sdk/" },
-						{
-							text: "Install and configure",
-							link: "/sdk/installation",
-						},
-					],
-				},
-				{
-					text: "Clients",
-					items: [
-						{
-							text: "Application client",
-							link: "/sdk/application-client",
-						},
-						{ text: "Admin client", link: "/sdk/admin-client" },
-						{ text: "Sessions and tokens", link: "/sdk/sessions" },
-						{
-							text: "Errors and cancellation",
-							link: "/sdk/errors",
 						},
 					],
 				},

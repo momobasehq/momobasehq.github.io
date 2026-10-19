@@ -10,13 +10,21 @@
 
 </div>
 
+The Go package is the Momobase payment engine: the HTTP API, routing, reconciliation, the database schema, and the provider contracts. Embed it in your own Go program when you need provider adapters, hooks, or HTTP routes that the prebuilt [server](/server/) does not include. Otherwise, run the server — [compare the two](/guide/choose).
+
+## What you need
+
+- Go 1.25 or newer.
+- The module `github.com/momobasehq/momobase`.
+- At least one provider adapter to register, such as the built-in `dummy` simulator or an [official provider](/library/official-providers).
+
+## Install
+
 ```sh
 go get github.com/momobasehq/momobase@latest
 ```
 
-The library is the payment engine itself: the HTTP API, the routing and reconciliation services, the database schema, and the provider contracts. [Momobase Server](/server/) is this package with a command-line interface, environment configuration, and a dashboard wrapped around it.
-
-Embed the library when you need adapters, hooks, or routes that a prebuilt binary cannot carry:
+## Run an instance
 
 ```go
 instance, err := momobase.New(
@@ -32,16 +40,15 @@ if err := instance.Run(); err != nil {
 }
 ```
 
-## What the host owns
+## What your program provides
 
-The library reads no environment variables and no configuration files. A `momobase.Config` value is the only source of settings, and where those values come from is your program's decision — flags, a config file, a secret manager, or the environment.
-
-The host also owns the executable, the container image, the process manager, and the deployment topology. That is the trade: full control, and the packaging work that comes with it. If you want the packaging done for you, [run the server](/server/) instead — [compare the two](/guide/choose).
+- **Configuration.** The package reads no environment variables or files. Pass a `momobase.Config` value, filled from wherever you keep settings. See [Configuration](/library/configuration).
+- **Packaging and deployment.** You build and run the executable or container image yourself.
 
 ## Next
 
 - [Embed an instance](/library/embedding) and control its lifecycle.
 - [Configure it](/library/configuration) field by field.
-- [Add hooks](/library/hooks) to reject or observe payments in process.
+- [Add hooks](/library/hooks) to reject or observe payments.
 - [Build a provider adapter](/library/providers) for a payment rail.
 - Look up the [Go API](/library/go-api) and the [provider API](/library/provider-api).

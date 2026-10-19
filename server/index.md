@@ -16,9 +16,12 @@
 docker run -p 9090:9090 -v momobase-data:/data ghcr.io/momobasehq/server
 ```
 
-Momobase Server is the runnable distribution: the HTTP API, the provider adapters compiled into it, and the administration dashboard, in one binary. Run it as a service and integrate over HTTP.
+Momobase Server is Momobase as one ready-to-run binary: the HTTP API, the payment provider adapters, and the administration dashboard. You configure it with environment variables and call it over HTTP.
 
-It is published as a container image and as signed archives for Linux, macOS, and Windows. Configuration comes from the environment rather than from code, so nothing here needs a Go toolchain.
+## What you need
+
+- Docker, or a Linux, macOS, or Windows machine to run the release binary.
+- No Go toolchain, unless you build from source.
 
 ```mermaid
 architecture-beta
@@ -37,13 +40,23 @@ architecture-beta
     providers:L -[Webhooks]-> B:proxy
 ```
 
-## What it adds to the library
+## What it includes
 
-The server wraps [the Go library](/library/) and supplies the parts a library cannot: a command-line interface, environment-based configuration, a `.env` loader, the compiled dashboard bundle on `/_`, and a `mb_public` directory served at `/`. The payment engine, HTTP API, and database schema are the library's.
+| Part                     | Where                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| Application API          | `/api/v1`                                                                            |
+| Admin API                | `/api/admin`                                                                         |
+| Provider webhooks        | `/webhooks/:providerAccountID`                                                       |
+| Administration dashboard | `/_`                                                                                 |
+| Your static files        | `/`, from a `mb_public` directory beside the binary                                  |
+| Command-line interface   | `serve`, `seed-admin`, `version`, `self-update` — see [CLI](/server/cli)             |
+| Configuration            | Environment variables and a `.env` file — see [Configuration](/server/configuration) |
 
-## Compiled providers
+The payment engine, API, and database schema come from [the Go package](/library/).
 
-A build can only execute the adapters compiled into it. Since v0.3.0 the published builds register the [official providers](/library/official-providers) alongside `dummy`:
+## Included providers
+
+The published builds include these provider adapters. Use the code when you create a provider account.
 
 | Code          | Provider          | Collections        | Disbursements | Verified webhooks |
 | ------------- | ----------------- | ------------------ | ------------- | ----------------- |
@@ -54,24 +67,20 @@ A build can only execute the adapters compiled into it. Since v0.3.0 the publish
 | `marzpay`     | MarzPay           | Mobile money, card | Mobile money  | Yes               |
 | `flutterwave` | Flutterwave       | Mobile money       | Mobile money  | Yes               |
 
-The first column is the provider code an operator selects when creating a provider account. Registering an adapter costs nothing until an account exists for its code, and each account is configured entirely through the Admin API — no rebuild, and no credentials in the environment.
+You configure each provider account in the dashboard or the Admin API. Provider credentials never go in the environment.
 
-`dummy` is a deterministic simulator that moves no money, so a fresh deployment can still be exercised end to end before any real credentials exist.
+`dummy` moves no money. Use it to test a new deployment before you have real credentials.
 
 ::: warning The official providers are under testing
-Most of these adapters have not yet run against a real merchant account in every market they target. Treat them as unproven against live money: start in each provider's sandbox, and note that MarzPay has no sandbox endpoint — its adapter always calls the live API.
-
-[TESTING.md](https://github.com/momobasehq/providers/blob/main/TESTING.md) explains what most needs testing and how to report what you find.
+Most of these adapters have not yet run against a live merchant account in every market. Start in each provider's sandbox. MarzPay has no sandbox: its adapter always calls the live API. Report what you find using [TESTING.md](https://github.com/momobasehq/providers/blob/main/TESTING.md).
 :::
 
-::: info Any other provider means rebuilding
-Provider adapters are compiled in, not loaded at runtime. To run a rail outside the table above you fork the server repository, add the adapter to `providers/providers.go`, and build your own image or binary — or [embed the library](/library/) directly and keep your `main()`.
-
-If your adapters are private or change often, the library is the better fit. [Compare the two](/guide/choose).
+::: info Need another provider?
+Adapters are compiled in. To add one, either fork the server repository, register the adapter in `providers/providers.go`, and build your own image or binary, or [embed the Go package](/library/) in your own program. [Compare the two](/guide/choose).
 :::
 
 ## Next
 
-- [Install the server](/server/install) with Docker or a release binary.
-- [Configure it](/server/configuration) for anything beyond a local trial.
-- [Create your first payment](/guide/first-payment) once it is running.
+1. [Install the server](/server/install).
+2. [Follow the Quickstart](/guide/quickstart).
+3. [Go live](/guide/go-live) when you are ready for real payments.

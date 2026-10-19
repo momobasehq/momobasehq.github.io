@@ -1,32 +1,29 @@
 # Command-line interface
 
 ```sh
-momobase serve                              # also what a bare `momobase` does
+momobase serve                              # the default when no command is given
 momobase seed-admin --email … --password …
 momobase version
+momobase self-update
 momobase --help
 ```
 
-The binary serves when given no subcommand, which is why the container image can set `momobase` as its entrypoint and `serve` as its command without the two conflicting. A mistyped subcommand is rejected rather than silently accepted as an argument.
-
 ## `serve`
 
-Starts the HTTP API, the provider runtimes, the background workers, and — unless disabled — the dashboard and the [public directory](/server/configuration#migrations-dashboard-and-the-public-directory). Runs until `SIGINT` or `SIGTERM`, then shuts down gracefully.
+Starts the HTTP API, the provider runtimes, the background workers, the dashboard, and the [public directory](/server/configuration#migrations-dashboard-and-the-public-directory). Runs until it receives `SIGINT` or `SIGTERM`, then shuts down gracefully.
 
-| Flag               | Overrides           | Description                              |
-| ------------------ | ------------------- | ---------------------------------------- |
-| `--addr`           | `APP_ADDR`          | Address the HTTP server listens on       |
-| `--dashboard`      | `DASHBOARD_ENABLED` | Serve the administration dashboard       |
-| `--dashboard-path` | `DASHBOARD_PATH`    | URL prefix the dashboard is served under |
-| `--public-dir`     | `PUBLIC_DIR`        | Directory served at `/` when it exists   |
+| Flag               | Overrides           | Description                            |
+| ------------------ | ------------------- | -------------------------------------- |
+| `--addr`           | `APP_ADDR`          | Address the HTTP server listens on     |
+| `--dashboard`      | `DASHBOARD_ENABLED` | Serve the administration dashboard     |
+| `--dashboard-path` | `DASHBOARD_PATH`    | URL prefix for the dashboard           |
+| `--public-dir`     | `PUBLIC_DIR`        | Directory served at `/` when it exists |
 
-Only flags you actually type take effect, so an absent flag leaves the environment value alone rather than overwriting it with a flag default. Everything else is configured through [environment variables](/server/configuration).
-
-Flags are applied before validation, so a flag cannot smuggle in a setting the environment alone would have been rejected for.
+A flag overrides its variable only when you pass it. Set everything else with [environment variables](/server/configuration).
 
 ## `seed-admin`
 
-Creates the first administrator and exits. Nothing else can create one: the Admin API needs an administrator to authenticate as.
+Creates the first administrator and exits. Create later administrators in the dashboard or the Admin API.
 
 ```sh
 momobase seed-admin \
@@ -41,17 +38,35 @@ momobase seed-admin \
 | `--password` | `ADMIN_PASSWORD` | required        |
 | `--name`     | `ADMIN_NAME`     | `Administrator` |
 
-Without an email and password from either source the command fails with `seed-admin needs --email and --password`.
-
-This command is **not idempotent** — running it twice with the same address fails on the uniqueness constraint. It connects to the configured database and applies migrations like `serve` does, but never mounts the dashboard or the public directory. Create further administrators through the Admin API or the dashboard.
+- Without an email and password, it fails with `seed-admin needs --email and --password`.
+- Running it again with the same email fails.
+- It connects to the configured database and applies migrations, like `serve`.
 
 ## `version`
 
-Prints the version stamped at build time.
+Prints the version.
 
 ```sh
 $ momobase version
-v0.1.0
+v0.4.1
 ```
 
-Release archives and container images carry a real version. A binary built with `go install` or `go build` reports `dev`.
+A binary built with `go install` or `go build` prints `dev`.
+
+## `self-update`
+
+Replaces the binary with the latest release from GitHub. It takes no arguments.
+
+```sh
+$ momobase self-update
+updating v0.4.0 -> v0.4.1
+installed v0.4.1 at /usr/local/bin/momobase; restart momobase to run it
+```
+
+It downloads `momobase_<version>_<os>_<arch>.zip` for your platform, checks it against the release's `SHA256SUMS`, and replaces the binary. If the binary is a symlink, it replaces the file the link points to.
+
+- It does not restart the server. Restart it yourself.
+- If you already run the latest release, it prints `momobase v0.4.1 is already the latest release`.
+- It needs write access to the binary's directory, and checks this before downloading.
+- On a `dev` build, it fails with `self-update needs a released build, and this one carries no version`.
+- In a container, it fails with `this binary runs in a container: pull a newer image instead`.
